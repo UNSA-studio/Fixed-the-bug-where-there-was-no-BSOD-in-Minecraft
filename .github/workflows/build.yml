@@ -6,16 +6,19 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: microsoft
           java-version: '21'
@@ -27,9 +30,15 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build with Gradle
-        run: ./gradlew build --stacktrace --no-daemon
+        run: |
+          set +e
+          ./gradlew build --stacktrace --no-daemon 2>&1 | tee build-output.log
+          code=${PIPESTATUS[0]}
+          echo "gradle_exit=$code" >> "$GITHUB_ENV"
+          exit $code
 
       - name: Upload mod jar
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft-${{ github.sha }}
@@ -37,3 +46,19 @@ jobs:
             build/libs/*.jar
             !build/libs/*-sources.jar
           if-no-files-found: error
+
+      - name: Commit build log on failure
+        if: failure()
+        run: |
+          git config user.name "UNSA Studio"
+          git config user.email "UNSA-studio@users.noreply.github.com"
+          {
+            echo "# Build failure log"
+            echo
+            echo '```text'
+            tail -n 400 build-output.log
+            echo '```'
+          } > BUILD_FAILURE_LOG.md
+          git add BUILD_FAILURE_LOG.md
+          git commit -m "ci: archive failing build log [skip ci]"
+          git push
