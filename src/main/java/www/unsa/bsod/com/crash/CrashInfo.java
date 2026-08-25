@@ -6,7 +6,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import net.minecraft.CrashReport;
-import net.minecraft.CrashReportCategory;
 
 /**
  * Extracts the interesting bits out of a {@link CrashReport}:
@@ -20,7 +19,7 @@ public final class CrashInfo {
     private final String description;
     private final String exceptionClass;
     private final String exceptionMessage;
-    private final List<String> involvedMods = new ArrayList<>();
+    private final List<String> involvedMods;
     private final String fullStacktrace;
 
     private CrashInfo(CrashReport report) {
@@ -37,11 +36,7 @@ public final class CrashInfo {
         }
         this.fullStacktrace = sw.toString();
 
-        for (String mod : ModListDetector.modsInStackTrace(fullStacktrace)) {
-            if (!involvedMods.contains(mod)) {
-                involvedMods.add(mod);
-            }
-        }
+        this.involvedMods = ModListDetector.detectFromReport(report);
     }
 
     public static CrashInfo of(CrashReport report) {
@@ -49,30 +44,14 @@ public final class CrashInfo {
     }
 
     public static CrashInfo raw(Throwable throwable, String description) {
-        CrashReportCategory dummy = null; // not used, kept simple
-        return new CrashInfo(wrap(throwable, description));
-    }
-
-    private static CrashReport wrap(Throwable t, String description) {
-        // A minimal fake report so we can reuse the same extraction path.
-        try {
-            CrashReport report = CrashReport.forThrowable(t, description);
-            return report;
-        } catch (Throwable ignored) {
-            // Extremely early crashes before bootstrap - build a shell object via reflection-free path.
-            return new EmptyReport(t, description).toCrashReport();
-        }
+        return new CrashInfo(CrashReport.forThrowable(throwable, description));
     }
 
     public String title() {
         return title;
     }
 
-    public String description() {
-        return description;
-    }
-
-    /** One-line crash code, e.g. {@code java.lang.NullPointerException: Cannot invoke ...} */
+    /** One-line crash code, e.g. {@code java.lang.NullPointerException: Cannot invoke ...}. */
     public String crashCode() {
         if (exceptionMessage == null || exceptionMessage.isBlank()) {
             return exceptionClass;
@@ -96,12 +75,5 @@ public final class CrashInfo {
         return fullStacktrace.isBlank()
                 ? "(stack trace unavailable)"
                 : fullStacktrace;
-    }
-
-    /** Tiny adapter used only when even CrashReport cannot be constructed yet. */
-    private record EmptyReport(Throwable cause, String text) {
-        CrashReport toCrashReport() {
-            return CrashReport.forThrowable(cause, text);
-        }
     }
 }

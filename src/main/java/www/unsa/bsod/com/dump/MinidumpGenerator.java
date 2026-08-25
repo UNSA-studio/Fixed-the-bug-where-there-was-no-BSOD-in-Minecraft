@@ -99,7 +99,7 @@ public final class MinidumpGenerator {
         int nameCursor = stringsRva;
         for (ModuleEntry m : modules) {
             blob.u64(m.base);
-            blob.u32(m.size);
+            blob.u32((int) (m.size() & 0xFFFFFFFFL));
             blob.u32(0);                  // checksum
             blob.u32(0);                  // timestamp
             blob.u32(nameCursor);         // name RVA
