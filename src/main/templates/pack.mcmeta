@@ -1,0 +1,6 @@
+{
+    "pack": {
+        "description": "Fixed the bug where there was no BSOD in Minecraft resources",
+        "pack_format": 34
+    }
+}

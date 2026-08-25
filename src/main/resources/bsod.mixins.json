@@ -1,0 +1,15 @@
+{
+    "required": true,
+    "minVersion": "0.8",
+    "package": "www.unsa.bsod.com.mixin",
+    "compatibilityLevel": "JAVA_21",
+    "refmap": "bsod.refmap.json",
+    "mixins": [
+    ],
+    "client": [
+        "MixinMinecraft"
+    ],
+    "injectors": {
+        "defaultRequire": 1
+    }
+}
