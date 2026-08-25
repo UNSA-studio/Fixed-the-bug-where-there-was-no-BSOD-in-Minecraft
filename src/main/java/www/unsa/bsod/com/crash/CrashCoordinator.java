@@ -6,6 +6,8 @@ import net.minecraft.client.Minecraft;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.fml.loading.FMLPaths;
+import org.lwjgl.glfw.GLFW;
+import org.lwjgl.opengl.GL11;
 import org.slf4j.Logger;
 import www.unsa.bsod.com.Config;
 import www.unsa.bsod.com.ai.AiAnalyzer;
@@ -182,9 +184,71 @@ public final class CrashCoordinator {
         globalHandlerInstalled = true;
     }
 
-    /** Lifecycle hook reserved for the mod constructor's client-setup event. */
+        /** Lifecycle hook reserved for the mod constructor's client-setup event. */
     public static void markClientReady() {
         // Nothing to do today; kept as a deliberate seam in the lifecycle.
+    }
+
+        /**
+     * Minimal self-driven render loop used when even the vanilla game loop is
+     * dead. Draws nothing but a flat Windows-blue clear color and keeps the
+     * GLFW window responsive until the user closes it or the restart fires.
+     * Deliberately touches no Minecraft rendering code - only raw GLFW/GL.
+     */
+    public static void runFallbackLoop() {
+        try {
+            long window = 0;
+            try {
+                var win = Minecraft.getInstance().getWindow();
+                if (win != null) {
+                    window = win.getWindow();
+                }
+            } catch (Throwable ignored) {
+            }
+            if (window == 0) {
+                return;
+            }
+            LOGGER.info("[BSOD] Entering fallback blue loop (vanilla game loop is dead)");
+
+            // Windows blue #0078D7 as normalized RGB.
+            GL11.glClearColor(0.0F, 0x78 / 255.0F, 0xD7 / 255.0F, 1.0F);
+            while (!GLFW.glfwWindowShouldClose(window)) {
+                GL11.glClear(GL11.GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT);
+                GLFW.glfwSwapBuffers(window);
+                GLFW.glfwPollEvents();
+
+                BsodState s = activeState;
+                if (s != null && s.restartAtMillis > 0 && !s.fallbackRestartSpawned
+                        && System.currentTimeMillis() >= s.restartAtMillis) {
+                    s.fallbackRestartSpawned = www.unsa.bsod.com.client.GameRestarter.restart();
+                }
+                try {
+                    Thread.sleep(16);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+        } catch (Throwable t) {
+            LOGGER.error("[BSOD] Fallback loop died", t);
+        }
+    }
+
+    /**
+     * Shutdown hook: if something calls {@code System.exit} while the artifact
+     * pipeline is still running, give the worker a short grace period so the
+     * report/dump actually land on disk before the JVM dies.
+     */
+    public static void installShutdownHook() {
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            BsodState s = activeState;
+            if (s != null && !s.pipelineDone) {
+                try {
+                    Thread.sleep(8000); // grace period for the daemon worker
+                } catch (InterruptedException ignored) {
+                }
+            }
+        }, "BSOD-ShutdownWaiter"));
     }
 
     public static BsodState activeState() {

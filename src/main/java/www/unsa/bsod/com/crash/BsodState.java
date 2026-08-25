@@ -21,6 +21,9 @@ public final class BsodState {
     /** True once every artifact has been written and the AI step finished. */
     public volatile boolean pipelineDone;
 
+    /** Set by the fallback loop once it has spawned the restart process. */
+    public volatile boolean fallbackRestartSpawned;
+
     /** Wall-clock time at which the restart countdown hits zero; -1 until scheduled. */
     public volatile long restartAtMillis = -1L;
 

@@ -40,6 +40,7 @@ public final class BsodMod {
 
     private void onCommonSetup(final FMLCommonSetupEvent event) {
         CrashCoordinator.installGlobalFallbackHandler();
+        CrashCoordinator.installShutdownHook();
     }
 
     private void onClientSetup(final FMLClientSetupEvent event) {

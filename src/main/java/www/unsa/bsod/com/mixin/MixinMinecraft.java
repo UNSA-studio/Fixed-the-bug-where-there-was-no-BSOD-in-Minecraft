@@ -44,4 +44,24 @@ public abstract class MixinMinecraft {
             }
         }
     }
+
+    /**
+     * Defense line 3: exceptions that escape the per-frame tick wrap entirely -
+     * e.g. raised in the parts of the game loop outside {@code runTick} (event
+     * polling, resource reloads). The normal loop is dead at that point, so we
+     * hand over to a minimal self-driven fallback loop that keeps the window
+     * alive and blue.
+     */
+    @WrapMethod(method = "run")
+    private void bsod$guardWholeGameLoop(Operation<Void> original) {
+        try {
+            original.call();
+        } catch (Throwable throwable) {
+            if (CrashCoordinator.onEscapedThrowable(throwable)) {
+                CrashCoordinator.runFallbackLoop();
+                return;
+            }
+            throw throwable;
+        }
+    }
 }
