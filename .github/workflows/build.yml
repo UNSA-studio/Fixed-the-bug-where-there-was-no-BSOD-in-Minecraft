@@ -41,7 +41,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft-${{ github.sha }}
+          name: Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft
           path: |
             build/libs/*.jar
             !build/libs/*-sources.jar
