@@ -16,7 +16,6 @@ import net.minecraft.CrashReport;
 public final class CrashInfo {
 
     private final String title;
-    private final String description;
     private final String exceptionClass;
     private final String exceptionMessage;
     private final List<String> involvedMods;
@@ -24,7 +23,6 @@ public final class CrashInfo {
 
     private CrashInfo(CrashReport report) {
         this.title = report.getTitle();
-        this.description = report.getDescription();
 
         Throwable t = report.getException();
         this.exceptionClass = t == null ? "Unknown" : t.getClass().getName();
