@@ -1,7 +1,5 @@
 package www.unsa.bsod.com.mixin;
 
-import java.util.function.Supplier;
-
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import net.minecraft.CrashReport;
@@ -13,22 +11,33 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import www.unsa.bsod.com.crash.CrashCoordinator;
 
 /**
- * The takeover core.
+ * The takeover core, targeting the real 1.21.1 crash pipeline (verified
+ * against Mojang's official 1.21.1 mappings):
  *
- * Defense line 1: {@code Minecraft#reportCrash} is the vanilla "we are crashing,
- * print the report, kill the process" routine. We intercept it before it gets
- * the chance to tear anything down.
- *
- * Defense line 2: even with reportCrash neutralised, the original exception may
- * still escape through the tick loop and end the game loop. We wrap the whole
- * per-frame tick so any escaped throwable is swallowed once we have taken over,
- * keeping the render loop alive to display the BSOD.
+ *   emergencySaveAndCrash(CrashReport)  - the main "we are crashing now" entry
+ *   delayCrash / delayCrashRaw          - deferred crash screen scheduling
+ *   runTick(boolean)                    - per-frame work, wrapped for escapes
+ *   run()                               - whole game loop, wrapped last
  */
 @Mixin(Minecraft.class)
 public abstract class MixinMinecraft {
 
-    @Inject(method = "reportCrash", at = @At("HEAD"), cancellable = true)
-    private void bsod$interceptReportCrash(CrashReport report, Supplier<String> detail, CallbackInfo ci) {
+    @Inject(method = "emergencySaveAndCrash", at = @At("HEAD"), cancellable = true)
+    private void bsod$interceptEmergencySaveAndCrash(CrashReport report, CallbackInfo ci) {
+        if (CrashCoordinator.onVanillaCrash(report)) {
+            ci.cancel();
+        }
+    }
+
+    @Inject(method = "delayCrash", at = @At("HEAD"), cancellable = true)
+    private void bsod$interceptDelayCrash(CrashReport report, CallbackInfo ci) {
+        if (CrashCoordinator.onVanillaCrash(report)) {
+            ci.cancel();
+        }
+    }
+
+    @Inject(method = "delayCrashRaw", at = @At("HEAD"), cancellable = true)
+    private void bsod$interceptDelayCrashRaw(CrashReport report, CallbackInfo ci) {
         if (CrashCoordinator.onVanillaCrash(report)) {
             ci.cancel();
         }
@@ -46,11 +55,10 @@ public abstract class MixinMinecraft {
     }
 
     /**
-     * Defense line 3: exceptions that escape the per-frame tick wrap entirely -
-     * e.g. raised in the parts of the game loop outside {@code runTick} (event
-     * polling, resource reloads). The normal loop is dead at that point, so we
-     * hand over to a minimal self-driven fallback loop that keeps the window
-     * alive and blue.
+     * Defense line: exceptions that escape the per-frame tick wrap entirely -
+     * e.g. raised in the parts of the game loop outside {@code runTick}. The
+     * normal loop is dead at that point, so we hand over to a minimal
+     * self-driven fallback loop that keeps the window alive and blue.
      */
     @WrapMethod(method = "run")
     private void bsod$guardWholeGameLoop(Operation<Void> original) {
