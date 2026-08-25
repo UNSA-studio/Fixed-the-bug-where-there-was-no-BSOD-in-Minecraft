@@ -1,6 +1,105 @@
 # Build failure log
 
 ```text
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.12/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+
+> Configure project :
+Creating Minecraft artifacts without recompilation.
+
+> Task :createMinecraftArtifacts
+Loaded 131 artifacts from /home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/build/tmp/createMinecraftArtifacts/nfrt_artifact_manifest.properties
+[1m*** Started working on [4mdownloadJson[0m[0m
+ [1m[92m✓[0m Completed [4mdownloadJson[0m in 0.02s
+[1m*** Started working on [4mdownloadServer[0m[0m
+[1m*** Started working on [4mdownloadClient[0m[0m
+[1m*** Started working on [4mdownloadClientMappings[0m[0m
+ [1m[92m✓[0m Completed [4mdownloadClientMappings[0m in 0.03s
+ [1m[92m✓[0m Completed [4mdownloadServer[0m in 0.03s
+ [1m[92m✓[0m Completed [4mdownloadClient[0m in 0.03s
+[1m*** Started working on [4mstripClient[0m[0m
+ [1m[92m♻[0m Used cache of [4mstripClient[0m in 0.00s
+[1m*** Started working on [4mmergeMappings[0m[0m
+ [1m[92m♻[0m Used cache of [4mmergeMappings[0m in 0.00s
+[1m*** Started working on [4mextractServer[0m[0m
+ [1m[92m♻[0m Used cache of [4mextractServer[0m in 0.00s
+[1m*** Started working on [4mstripServer[0m[0m
+ [1m[92m♻[0m Used cache of [4mstripServer[0m in 0.00s
+[1m*** Started working on [4mmerge[0m[0m
+ [1m[92m♻[0m Used cache of [4mmerge[0m in 0.00s
+[1m*** Started working on [4mrename[0m[0m
+ [1m[92m♻[0m Used cache of [4mrename[0m in 0.00s
+[1m*** Started working on [4mbinaryPatch[0m[0m
+ [1m[92m♻[0m Used cache of [4mbinaryPatch[0m in 0.00s
+[1m*** Started working on [4mcopyUnpatchedClasses[0m[0m
+ [1m[92m♻[0m Used cache of [4mcopyUnpatchedClasses[0m in 0.00s
+[1m*** Started working on [4mapplyDevTransforms[0m[0m
+ [1m[92m♻[0m Used cache of [4mapplyDevTransforms[0m in 0.00s
+[1m*** Started working on [4mbinaryWithNeoForge[0m[0m
+ [1m[92m♻[0m Used cache of [4mbinaryWithNeoForge[0m in 0.00s
+Total runtime: 0.95s
+
+
+> Task :compileJava
+/home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/client/BsodScreen.java:9: error: cannot find symbol
+import www.unsa.bsod.com.Config;
+                        ^
+  symbol:   class Config
+  location: package www.unsa.bsod.com
+/home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/crash/CrashCoordinator.java:10: error: cannot find symbol
+import www.unsa.bsod.com.Config;
+                        ^
+  symbol:   class Config
+  location: package www.unsa.bsod.com
+/home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/ai/AiAnalyzer.java:13: error: cannot find symbol
+import www.unsa.bsod.com.Config;
+                        ^
+  symbol:   class Config
+  location: package www.unsa.bsod.com
+/home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/dump/MinidumpGenerator.java:102: error: incompatible types: possible lossy conversion from long to int
+            blob.u32(m.size);
+                      ^
+/home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/crash/CrashInfo.java:28: error: cannot find symbol
+        this.description = report.getDescription();
+                                 ^
+  symbol:   method getDescription()
+  location: variable report of type CrashReport
+/home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/crash/CrashInfo.java:40: error: cannot find symbol
+        for (String mod : ModListDetector.modsInStackTrace(fullStacktrace)) {
+                                         ^
+  symbol:   method modsInStackTrace(String)
+  location: class ModListDetector
+/home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/BsodMod.java:30: error: cannot find symbol
+        modContainer.registerConfig(ModConfig.Type.STARTUP, Config.SPEC);
+                                                            ^
+  symbol:   variable Config
+  location: class BsodMod
+/home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/client/BsodScreen.java:51: error: package Config does not exist
+            String url = normalizeUrl(Config.QR_TARGET_URL.get());
+                                            ^
+/home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/crash/CrashCoordinator.java:112: error: package Config does not exist
+            var dumpFolder = FMLPaths.GAMEDIR.get().resolve(Config.DUMP_FOLDER_NAME.get());
+                                                                  ^
+/home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/crash/CrashCoordinator.java:121: error: package Config does not exist
+            if (Config.SAVE_TO_DESKTOP.get()) {
+                      ^
+/home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/crash/CrashCoordinator.java:130: error: cannot find symbol
+            if (Config.aiEnabled()) {
+                ^
+  symbol:   variable Config
+  location: class CrashCoordinator
+/home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/crash/CrashCoordinator.java:136: error: package Config does not exist
+                    if (Config.SAVE_TO_DESKTOP.get()) {
+                              ^
+/home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/crash/CrashCoordinator.java:152: error: cannot find symbol
+            if (Config.autoRestart()) {
+                ^
+  symbol:   variable Config
+  location: class CrashCoordinator
+/home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/crash/CrashCoordinator.java:154: error: package Config does not exist
+                        + Config.RESTART_DELAY_SECONDS.get() * 1000L;
+                                ^
+/home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/crash/CrashCoordinator.java:160: error: cannot find symbol
             if (Config.autoRestart()) {
                 ^
   symbol:   variable Config
@@ -8,11 +107,6 @@
 /home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/crash/CrashCoordinator.java:162: error: package Config does not exist
                         + Config.RESTART_DELAY_SECONDS.get() * 1000L;
                                 ^
-/home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/crash/ModListDetector.java:117: error: cannot find symbol
-            String s = report.getSystemDetails();
-                             ^
-  symbol:   method getSystemDetails()
-  location: variable report of type CrashReport
 /home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/ai/AiAnalyzer.java:28: error: package Config does not exist
         String baseUrl = Config.AI_BASE_URL.get().trim();
                                ^
@@ -28,10 +122,10 @@
 Note: /home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/dump/MinidumpGenerator.java uses or overrides a deprecated API.
 Note: Recompile with -Xlint:deprecation for details.
 Note: Some messages have been simplified; recompile with -Xdiags:verbose to get full output
-21 errors
+20 errors
 
 > Task :compileJava FAILED
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1787642687419.json
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1787643623442.json
 
 [Incubating] Problems report is available at: file:///home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/build/reports/problems/problems-report.html
 
@@ -112,15 +206,10 @@ Execution failed for task ':compileJava'.
           for (String mod : ModListDetector.modsInStackTrace(fullStacktrace)) {
                                            ^
     symbol:   method modsInStackTrace(String)
-    location: class ModListDetector
-  /home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/crash/ModListDetector.java:117: error: cannot find symbol
-              String s = report.getSystemDetails();
-                               ^
-    symbol:   method getSystemDetails()
-    location: variable report of type CrashReport/home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/dump/MinidumpGenerator.java:102: error: incompatible types: possible lossy conversion from long to int
+    location: class ModListDetector/home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/dump/MinidumpGenerator.java:102: error: incompatible types: possible lossy conversion from long to int
               blob.u32(m.size);
                         ^Note: /home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/dump/MinidumpGenerator.java uses or overrides a deprecated API.
-  21 errors
+  20 errors
 
 * Try:
 > Check your code and dependencies to fix the compilation error(s)
@@ -233,15 +322,10 @@ import www.unsa.bsod.com.Config;
         for (String mod : ModListDetector.modsInStackTrace(fullStacktrace)) {
                                          ^
   symbol:   method modsInStackTrace(String)
-  location: class ModListDetector
-/home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/crash/ModListDetector.java:117: error: cannot find symbol
-            String s = report.getSystemDetails();
-                             ^
-  symbol:   method getSystemDetails()
-  location: variable report of type CrashReport/home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/dump/MinidumpGenerator.java:102: error: incompatible types: possible lossy conversion from long to int
+  location: class ModListDetector/home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/dump/MinidumpGenerator.java:102: error: incompatible types: possible lossy conversion from long to int
             blob.u32(m.size);
                       ^Note: /home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/dump/MinidumpGenerator.java uses or overrides a deprecated API.
-21 errors
+20 errors
 	at org.gradle.api.internal.tasks.compile.JdkJavaCompiler.execute(JdkJavaCompiler.java:84)
 	at org.gradle.api.internal.tasks.compile.JdkJavaCompiler.execute(JdkJavaCompiler.java:46)
 	at org.gradle.api.internal.tasks.compile.NormalizingJavaCompiler.delegateAndHandleErrors(NormalizingJavaCompiler.java:98)
@@ -399,6 +483,6 @@ import www.unsa.bsod.com.Config;
 	at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManagedExecutor.java:48)
 
 
-BUILD FAILED in 55s
+BUILD FAILED in 17s
 2 actionable tasks: 2 executed
 ```
