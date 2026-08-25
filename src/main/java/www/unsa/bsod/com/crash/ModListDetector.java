@@ -37,22 +37,9 @@ public final class ModListDetector {
     public static List<String> detectFromReport(CrashReport report) {
         Set<String> hits = new LinkedHashSet<>();
 
-        // Signal 1: the loader's own suspicion list, when available.
-        String details = safeSystemDetails(report);
-        int idx = details.indexOf("Suspected Mods:");
-        if (idx >= 0) {
-            String tail = details.substring(idx + "Suspected Mods:".length());
-            int eol = tail.indexOf('\n');
-            String line = (eol >= 0 ? tail.substring(0, eol) : tail).trim();
-            for (String token : line.split("[,;|]+")) {
-                String id = token.trim();
-                if (!id.isEmpty() && !id.equalsIgnoreCase("none")) {
-                    hits.add(prettyById(id));
-                }
-            }
-        }
-
-        // Signal 2: brute-force scan of the stack trace against all loaded mods.
+        // Brute-force scan of the stack trace against all loaded mods.
+        // (NeoForge additionally enriches the saved report file with its own
+        // "Suspected Mods" line, so the information is not lost either way.)
         Throwable cause = report.getException();
         String trace = cause == null ? "" : stackTraceOf(cause);
         matchLoadedMods(hits, trace);
@@ -100,25 +87,6 @@ public final class ModListDetector {
             return mod.getModId();
         }
         return display + " (" + mod.getModId() + ")";
-    }
-
-    private static String prettyById(String id) {
-        try {
-            return ModList.get().getModContainerById(id)
-                    .map(container -> pretty(container.getModInfo()))
-                    .orElse(id);
-        } catch (Throwable ignored) {
-            return id;
-        }
-    }
-
-    private static String safeSystemDetails(CrashReport report) {
-        try {
-            String s = report.getSystemDetails();
-            return s == null ? "" : s;
-        } catch (Throwable ignored) {
-            return "";
-        }
     }
 
     private static String stackTraceOf(Throwable t) {

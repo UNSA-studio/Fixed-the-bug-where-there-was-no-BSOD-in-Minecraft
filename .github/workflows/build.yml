@@ -56,7 +56,7 @@ jobs:
             echo "# Build failure log"
             echo
             echo '```text'
-            tail -n 400 build-output.log
+            cat build-output.log
             echo '```'
           } > BUILD_FAILURE_LOG.md
           git add BUILD_FAILURE_LOG.md
