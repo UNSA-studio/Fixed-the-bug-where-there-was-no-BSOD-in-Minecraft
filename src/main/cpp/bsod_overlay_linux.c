@@ -85,9 +85,9 @@ int main(int argc, char** argv) {
     XMapWindow(dpy, overlay);
 
     Colormap cmap = DefaultColormap(dpy, scr);
-    XColor blueExact, blue;
-    XParseColor(dpy, cmap, "#0078D7", &blueExact);
-    XAllocColor(dpy, cmap, &blueExact, &blue);
+    XColor blue;
+    XParseColor(dpy, cmap, "#0078D7", &blue);
+    XAllocColor(dpy, cmap, &blue);
     XSetWindowBackground(dpy, overlay, blue.pixel);
 
     XStoreName(dpy, overlay, "BSOD");
