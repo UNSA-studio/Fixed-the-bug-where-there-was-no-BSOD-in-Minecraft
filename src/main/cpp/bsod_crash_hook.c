@@ -14,7 +14,7 @@
  * string APIs and CreateProcessA - no CRT heap allocations.
  */
 
-static char g_scriptPath[MAX_PATH];
+static char g_overlayPath[MAX_PATH];
 static char g_restartPath[MAX_PATH];
 
 /* Finds the biggest visible top-level window of our own process (the MC window). */
@@ -51,9 +51,9 @@ static LONG WINAPI BsodVectoredHandler(PEXCEPTION_POINTERS info) {
     RECT mcRect = { -1, -1, -1, -1 };
     EnumWindows(FindMcWindowProc, (LPARAM) &mcRect);
 
-    char cmd[MAX_PATH * 2 + 260];
-    lstrcpyA(cmd, "powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File \"");
-    lstrcatA(cmd, g_scriptPath);
+    char cmd[MAX_PATH * 2 + 300];
+    lstrcpyA(cmd, "cmd /c start \"\" \"");
+    lstrcatA(cmd, g_overlayPath);
     lstrcatA(cmd, "\" 0x");
     {
         char num[16];
@@ -65,12 +65,11 @@ static LONG WINAPI BsodVectoredHandler(PEXCEPTION_POINTERS info) {
         num[8] = '\0';
         lstrcatA(cmd, num);
     }
-    lstrcatA(cmd, " \"");
-    lstrcatA(cmd, g_restartPath);
-    lstrcatA(cmd, "\"");
-    wsprintfA(cmd + lstrlenA(cmd), " %ld %ld %ld %ld",
+    wsprintfA(cmd + lstrlenA(cmd), " %ld %ld %ld %ld %lu \"%s\"",
               (long) mcRect.left, (long) mcRect.top,
-              (long) mcRect.right, (long) mcRect.bottom);
+              (long) mcRect.right, (long) mcRect.bottom,
+              (unsigned long) GetCurrentProcessId(),
+              g_restartPath);
 
     {
         STARTUPINFOA si;
@@ -88,13 +87,13 @@ static LONG WINAPI BsodVectoredHandler(PEXCEPTION_POINTERS info) {
 
 __declspec(dllexport) void JNICALL
 Java_www_unsa_bsod_com_crash_NativeCrashHook_install0(JNIEnv* env, jclass cls,
-                                                     jstring scriptPath,
+                                                     jstring overlayPath,
                                                      jstring restartPath) {
-    const char* s = (*env)->GetStringUTFChars(env, scriptPath, NULL);
+    const char* s = (*env)->GetStringUTFChars(env, overlayPath, NULL);
     const char* r = (*env)->GetStringUTFChars(env, restartPath, NULL);
-    lstrcpynA(g_scriptPath, s, MAX_PATH);
+    lstrcpynA(g_overlayPath, s, MAX_PATH);
     lstrcpynA(g_restartPath, r, MAX_PATH);
-    (*env)->ReleaseStringUTFChars(env, scriptPath, s);
+    (*env)->ReleaseStringUTFChars(env, overlayPath, s);
     (*env)->ReleaseStringUTFChars(env, restartPath, r);
 
     AddVectoredExceptionHandler(1, BsodVectoredHandler);

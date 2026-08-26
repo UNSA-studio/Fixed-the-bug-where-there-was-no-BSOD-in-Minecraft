@@ -30,6 +30,14 @@ public final class BsodMod {
     public BsodMod(IEventBus modEventBus, ModContainer modContainer) {
         modContainer.registerConfig(ModConfig.Type.STARTUP, Config.SPEC);
 
+        // Give the Mods menu a real Config button instead of the dead default.
+        if (FMLEnvironment.dist == Dist.CLIENT) {
+            modContainer.registerExtensionPoint(
+                    net.neoforged.neoforge.client.ConfigScreenHandler.ConfigScreenFactory.class,
+                    () -> new net.neoforged.neoforge.client.ConfigScreenHandler.ConfigScreenFactory(
+                            (mc, parent) -> new www.unsa.bsod.com.client.BsodConfigScreen(parent)));
+        }
+
         modEventBus.addListener(this::onCommonSetup);
 
         if (FMLEnvironment.dist == Dist.CLIENT) {

@@ -45,11 +45,11 @@ public final class NativeCrashHook {
             Files.createDirectories(bsodDir);
 
             Path dll = extractResource("bsod_crash_hook.dll", bsodDir);
-            Path script = extractResource("bsod_overlay.ps1", bsodDir);
+            Path overlay = extractResource("bsod_overlay.exe", bsodDir);
             Path restartCmd = writeRestartScript(bsodDir);
 
             System.load(dll.toAbsolutePath().toString());
-            install0(script.toAbsolutePath().toString(),
+            install0(overlay.toAbsolutePath().toString(),
                     restartCmd.toAbsolutePath().toString());
             LOGGER.info("[BSOD] Native crash hook installed - even hard JVM crashes will now show blue");
         } catch (Throwable t) {

@@ -62,6 +62,12 @@ tasks.register('compileNativeHook') {
                     '-lkernel32', '-luser32',
                     '-o', outDir.get().file('bsod_crash_hook.dll').asFile
         }
+        exec {
+            commandLine 'x86_64-w64-mingw32-gcc', '-mwindows', '-O2',
+                    'src/main/cpp/bsod_overlay.c',
+                    '-luser32', '-lgdi32', '-lshell32',
+                    '-o', outDir.get().file('bsod_overlay.exe').asFile
+        }
     }
 }
 
