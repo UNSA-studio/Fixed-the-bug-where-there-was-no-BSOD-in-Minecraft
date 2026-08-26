@@ -24,21 +24,23 @@ public final class AiAnalyzer {
     private AiAnalyzer() {
     }
 
-    public static String analyze(ModContext context) throws Exception {
+    /**
+     * Sends the FULL crash report to an OpenAI-compatible chat endpoint and
+     * returns its analysis.
+     */
+    public static String analyze(ModContext context, String fullReport) throws Exception {
         String baseUrl = Config.AI_BASE_URL.get().trim();
         if (baseUrl.endsWith("/")) {
             baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
         }
         String url = baseUrl + "/chat/completions";
 
-        String prompt = buildPrompt(context);
-
         Map<String, Object> payload = Map.of(
                 "model", Config.AI_MODEL.get(),
                 "messages", List.of(
                         Map.of("role", "system",
-                                "content", "You are a senior Minecraft modding engineer. Analyse the crash and answer concisely in English: likely root cause, involved mods, and concrete fix suggestions. Plain text only."),
-                        Map.of("role", "user", "content", prompt)),
+                                "content", "You are a senior Minecraft modding engineer. A full crash report follows. Analyse it and answer concisely in English: likely root cause, involved mods, and concrete fix suggestions. Plain text only."),
+                        Map.of("role", "user", "content", truncate(fullReport, 30000))),
                 "temperature", 0.2);
 
         HttpClient client = HttpClient.newBuilder()
@@ -73,15 +75,6 @@ public final class AiAnalyzer {
             throw new IllegalStateException("AI returned an empty analysis");
         }
         return content.toString().strip();
-    }
-
-    private static String buildPrompt(ModContext context) {
-        StringBuilder sb = new StringBuilder(2048);
-        sb.append("Minecraft version: ").append(context.gameVersion()).append('\n');
-        sb.append("Crash code: ").append(context.crashCode()).append('\n');
-        sb.append("Involved mods: ").append(String.join(", ", context.involvedMods())).append("\n\n");
-        sb.append("Stack trace:\n").append(truncate(context.stacktrace(), 6000));
-        return sb.toString();
     }
 
     private static String truncate(String s, int max) {

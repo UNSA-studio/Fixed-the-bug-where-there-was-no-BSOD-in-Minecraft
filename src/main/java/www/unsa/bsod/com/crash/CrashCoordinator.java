@@ -102,10 +102,15 @@ public final class CrashCoordinator {
 
     /**
      * The artifact pipeline: plain-text report -> game folder copy -> minidump
-     * -> desktop copy -> optional AI analysis (appended everywhere) ->
-     * schedule restart. Runs on the dedicated worker thread only.
+     * -> desktop copy -> optional AI analysis -> schedule restart.
+     *
+     * When AI analysis is enabled the percentage deliberately refuses to reach
+     * 100 until the AI has actually answered: a daemon crawler creeps the bar
+     * up towards 99% for as long as the request is in flight. Runs on the
+     * dedicated worker thread only.
      */
     private static void runPipeline(BsodState state) {
+        Thread aiProgressCrawler = null;
         try {
             state.phase = "Collecting error data";
             String report = ReportBuilder.buildReportText(state);
@@ -118,7 +123,7 @@ public final class CrashCoordinator {
             state.phase = "Writing memory dump";
             MinidumpGenerator.writeDump(
                     dumpFolder.resolve(ReportBuilder.baseName(state) + ".dmp"), state.context);
-            state.collectPercent = 60;
+            state.collectPercent = 55;
 
             if (Config.SAVE_TO_DESKTOP.get()) {
                 state.phase = "Copying report to your desktop";
@@ -126,13 +131,30 @@ public final class CrashCoordinator {
                 if (desktop != null) {
                     ReportBuilder.writeDesktopCopy(desktop, state, report);
                 }
-                state.collectPercent = 70;
+                state.collectPercent = 60;
             }
 
             if (Config.aiEnabled()) {
-                state.phase = "Asking the AI what went wrong";
+                state.phase = "Waiting for the AI to finish its analysis";
+
+                // The bar must stay below 100 until the AI has spoken.
+                aiProgressCrawler = new Thread(() -> {
+                    int virtual = state.collectPercent;
+                    while (virtual < 99 && !state.pipelineDone) {
+                        try {
+                            Thread.sleep(1500);
+                        } catch (InterruptedException e) {
+                            return;
+                        }
+                        virtual++;
+                        state.collectPercent = Math.min(virtual, 99);
+                    }
+                }, "BSOD-ProgressCrawler");
+                aiProgressCrawler.setDaemon(true);
+                aiProgressCrawler.start();
+
                 try {
-                    String analysis = AiAnalyzer.analyze(state.context);
+                    String analysis = AiAnalyzer.analyze(state.context, report);
                     state.aiAnalysis = analysis;
                     ReportBuilder.appendAnalysis(reportFile, analysis);
                     if (Config.SAVE_TO_DESKTOP.get()) {
@@ -148,7 +170,7 @@ public final class CrashCoordinator {
             }
 
             state.collectPercent = 100;
-            state.phase = "Done";
+            state.phase = Config.aiEnabled() ? "AI analysis complete - restarting soon" : "Done";
             state.pipelineDone = true;
 
             if (Config.autoRestart()) {
@@ -159,9 +181,14 @@ public final class CrashCoordinator {
             LOGGER.error("[BSOD] The crash handler itself crashed (ironic)", t);
             state.phase = "Failed to finish collecting data";
             state.pipelineDone = true;
+            state.collectPercent = 100;
             if (Config.autoRestart()) {
                 state.restartAtMillis = System.currentTimeMillis()
                         + Config.RESTART_DELAY_SECONDS.get() * 1000L;
+            }
+        } finally {
+            if (aiProgressCrawler != null) {
+                aiProgressCrawler.interrupt();
             }
         }
     }
