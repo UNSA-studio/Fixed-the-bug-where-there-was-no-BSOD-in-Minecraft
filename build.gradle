@@ -92,12 +92,9 @@ tasks.register('compileNativeHookLinux') {
     }
 }
 
-tasks.named('build').configure {
-    dependsOn 'compileNativeHookLinux'
-}
-
 tasks.named('processResources', ProcessResources).configure {
     dependsOn 'compileNativeHook'
+    dependsOn 'compileNativeHookLinux'
     from(layout.buildDirectory.dir('native')) {
         include '*.dll'
         include 'bsod_crash_hook.so'
