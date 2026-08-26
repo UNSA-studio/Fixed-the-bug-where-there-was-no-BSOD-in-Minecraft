@@ -11,6 +11,7 @@ import net.neoforged.api.distmarker.Dist;
 import org.slf4j.Logger;
 import com.mojang.logging.LogUtils;
 import www.unsa.bsod.com.crash.CrashCoordinator;
+import www.unsa.bsod.com.crash.NativeCrashHook;
 
 /**
  * Fixed the bug where there was no BSOD in Minecraft.
@@ -33,6 +34,7 @@ public final class BsodMod {
 
         if (FMLEnvironment.dist == Dist.CLIENT) {
             modEventBus.addListener(this::onClientSetup);
+            NativeCrashHook.install();
         }
 
         LOGGER.info("[BSOD] Fixed the bug where there was no BSOD in Minecraft - loaded. XD");
