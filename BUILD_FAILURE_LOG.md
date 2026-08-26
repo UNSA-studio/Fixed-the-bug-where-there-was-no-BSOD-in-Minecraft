@@ -11,16 +11,16 @@ Creating Minecraft artifacts without recompilation.
 Loaded 131 artifacts from /home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/build/tmp/createMinecraftArtifacts/nfrt_artifact_manifest.properties
 [1m*** Started working on [4mdownloadJson[0m[0m
  [1m[92m✓[0m Completed [4mdownloadJson[0m in 0.02s
-[1m*** Started working on [4mdownloadClient[0m[0m
 [1m*** Started working on [4mdownloadServer[0m[0m
+[1m*** Started working on [4mdownloadClient[0m[0m
 [1m*** Started working on [4mdownloadClientMappings[0m[0m
  [1m[92m✓[0m Completed [4mdownloadServer[0m in 0.03s
  [1m[92m✓[0m Completed [4mdownloadClient[0m in 0.03s
- [1m[92m✓[0m Completed [4mdownloadClientMappings[0m in 0.03s
-[1m*** Started working on [4mstripClient[0m[0m
- [1m[92m♻[0m Used cache of [4mstripClient[0m in 0.00s
+ [1m[92m✓[0m Completed [4mdownloadClientMappings[0m in 0.00s
 [1m*** Started working on [4mmergeMappings[0m[0m
  [1m[92m♻[0m Used cache of [4mmergeMappings[0m in 0.00s
+[1m*** Started working on [4mstripClient[0m[0m
+ [1m[92m♻[0m Used cache of [4mstripClient[0m in 0.00s
 [1m*** Started working on [4mextractServer[0m[0m
  [1m[92m♻[0m Used cache of [4mextractServer[0m in 0.00s
 [1m*** Started working on [4mstripServer[0m[0m
@@ -37,30 +37,31 @@ Loaded 131 artifacts from /home/runner/work/Fixed-the-bug-where-there-was-no-BSO
  [1m[92m♻[0m Used cache of [4mapplyDevTransforms[0m in 0.00s
 [1m*** Started working on [4mbinaryWithNeoForge[0m[0m
  [1m[92m♻[0m Used cache of [4mbinaryWithNeoForge[0m in 0.00s
-Total runtime: 1.02s
+Total runtime: 0.88s
 
-
-> Task :compileJava
-/home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/BsodMod.java:36: error: reference to registerExtensionPoint is ambiguous
-            modContainer.registerExtensionPoint(
-                        ^
-  both method <T#1>registerExtensionPoint(Class<T#1>,T#1) in ModContainer and method <T#2>registerExtensionPoint(Class<T#2>,Supplier<T#2>) in ModContainer match
-  where T#1,T#2 are type-variables:
-    T#1 extends IExtensionPoint declared in method <T#1>registerExtensionPoint(Class<T#1>,T#1)
-    T#2 extends IExtensionPoint declared in method <T#2>registerExtensionPoint(Class<T#2>,Supplier<T#2>)
-/home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/BsodMod.java:36: error: incompatible types: cannot infer type-variable(s) T
-            modContainer.registerExtensionPoint(
-                                               ^
-    (argument mismatch; bad return type in lambda expression
-      IConfigScreenFactory cannot be converted to Screen)
-  where T is a type-variable:
-    T extends IExtensionPoint declared in method <T>registerExtensionPoint(Class<T>,T)
-Note: /home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/dump/MinidumpGenerator.java uses or overrides a deprecated API.
-Note: Recompile with -Xlint:deprecation for details.
-2 errors
 
 > Task :compileJava FAILED
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_3-1787721429048.json
+/home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/client/BsodScreen.java:111: error: incompatible types: List<FormattedCharSequence> cannot be converted to List<FormattedText>
+                    font.split(FormattedText.of(state.aiAnalysis.strip()), panelWidth);
+                              ^
+/home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/client/BsodScreen.java:119: error: no suitable method found for drawString(Font,FormattedText,int,int,int,boolean)
+                graphics.drawString(font, lines.get(i), left, y, 0xE6FFFFFF, false);
+                        ^
+    method GuiGraphics.drawString(Font,String,int,int,int,boolean) is not applicable
+      (argument mismatch; FormattedText cannot be converted to String)
+    method GuiGraphics.drawString(Font,String,float,float,int,boolean) is not applicable
+      (argument mismatch; FormattedText cannot be converted to String)
+    method GuiGraphics.drawString(Font,FormattedCharSequence,int,int,int,boolean) is not applicable
+      (argument mismatch; FormattedText cannot be converted to FormattedCharSequence)
+    method GuiGraphics.drawString(Font,FormattedCharSequence,float,float,int,boolean) is not applicable
+      (argument mismatch; FormattedText cannot be converted to FormattedCharSequence)
+    method GuiGraphics.drawString(Font,Component,int,int,int,boolean) is not applicable
+      (argument mismatch; FormattedText cannot be converted to Component)
+Note: /home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/dump/MinidumpGenerator.java uses or overrides a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+Note: Some messages have been simplified; recompile with -Xdiags:verbose to get full output
+2 errors
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_3-1787725457457.json
 
 [Incubating] Problems report is available at: file:///home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/build/reports/problems/problems-report.html
 
@@ -69,19 +70,21 @@ FAILURE: Build failed with an exception.
 * What went wrong:
 Execution failed for task ':compileJava'.
 > Compilation failed; see the compiler output below.
-  Note: Recompile with -Xlint:deprecation for details./home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/BsodMod.java:36: error: incompatible types: cannot infer type-variable(s) T
-              modContainer.registerExtensionPoint(
-                                                 ^
-      (argument mismatch; bad return type in lambda expression
-        IConfigScreenFactory cannot be converted to Screen)
-    where T is a type-variable:
-      T extends IExtensionPoint declared in method <T>registerExtensionPoint(Class<T>,T)Note: /home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/dump/MinidumpGenerator.java uses or overrides a deprecated API./home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/BsodMod.java:36: error: reference to registerExtensionPoint is ambiguous
-              modContainer.registerExtensionPoint(
+  Note: Some messages have been simplified; recompile with -Xdiags:verbose to get full outputNote: Recompile with -Xlint:deprecation for details./home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/client/BsodScreen.java:119: error: no suitable method found for drawString(Font,FormattedText,int,int,int,boolean)
+                  graphics.drawString(font, lines.get(i), left, y, 0xE6FFFFFF, false);
                           ^
-    both method <T#1>registerExtensionPoint(Class<T#1>,T#1) in ModContainer and method <T#2>registerExtensionPoint(Class<T#2>,Supplier<T#2>) in ModContainer match
-    where T#1,T#2 are type-variables:
-      T#1 extends IExtensionPoint declared in method <T#1>registerExtensionPoint(Class<T#1>,T#1)
-      T#2 extends IExtensionPoint declared in method <T#2>registerExtensionPoint(Class<T#2>,Supplier<T#2>)
+      method GuiGraphics.drawString(Font,String,int,int,int,boolean) is not applicable
+        (argument mismatch; FormattedText cannot be converted to String)
+      method GuiGraphics.drawString(Font,String,float,float,int,boolean) is not applicable
+        (argument mismatch; FormattedText cannot be converted to String)
+      method GuiGraphics.drawString(Font,FormattedCharSequence,int,int,int,boolean) is not applicable
+        (argument mismatch; FormattedText cannot be converted to FormattedCharSequence)
+      method GuiGraphics.drawString(Font,FormattedCharSequence,float,float,int,boolean) is not applicable
+        (argument mismatch; FormattedText cannot be converted to FormattedCharSequence)
+      method GuiGraphics.drawString(Font,Component,int,int,int,boolean) is not applicable
+        (argument mismatch; FormattedText cannot be converted to Component)/home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/client/BsodScreen.java:111: error: incompatible types: List<FormattedCharSequence> cannot be converted to List<FormattedText>
+                      font.split(FormattedText.of(state.aiAnalysis.strip()), panelWidth);
+                                ^Note: /home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/dump/MinidumpGenerator.java uses or overrides a deprecated API.
   2 errors
 
 * Try:
@@ -120,22 +123,53 @@ org.gradle.api.tasks.TaskExecutionException: Execution failed for task ':compile
 	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph$BuildOperationAwareExecutionAction.execute(DefaultTaskExecutionGraph.java:303)
 	at org.gradle.execution.plan.DefaultPlanExecutor$ExecutorWorker.execute(DefaultPlanExecutor.java:459)
 	at org.gradle.execution.plan.DefaultPlanExecutor$ExecutorWorker.run(DefaultPlanExecutor.java:376)
+	at org.gradle.execution.plan.DefaultPlanExecutor.process(DefaultPlanExecutor.java:111)
+	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph.executeWithServices(DefaultTaskExecutionGraph.java:138)
+	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph.execute(DefaultTaskExecutionGraph.java:123)
+	at org.gradle.execution.SelectedTaskExecutionAction.execute(SelectedTaskExecutionAction.java:35)
+	at org.gradle.execution.DryRunBuildExecutionAction.execute(DryRunBuildExecutionAction.java:51)
+	at org.gradle.execution.BuildOperationFiringBuildWorkerExecutor$ExecuteTasks.call(BuildOperationFiringBuildWorkerExecutor.java:54)
+	at org.gradle.execution.BuildOperationFiringBuildWorkerExecutor$ExecuteTasks.call(BuildOperationFiringBuildWorkerExecutor.java:43)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:209)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:204)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:66)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:59)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:166)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:59)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.call(DefaultBuildOperationRunner.java:53)
+	at org.gradle.execution.BuildOperationFiringBuildWorkerExecutor.execute(BuildOperationFiringBuildWorkerExecutor.java:40)
+	at org.gradle.internal.build.DefaultBuildLifecycleController.lambda$executeTasks$10(DefaultBuildLifecycleController.java:313)
+	at org.gradle.internal.model.StateTransitionController.doTransition(StateTransitionController.java:266)
+	at org.gradle.internal.model.StateTransitionController.lambda$tryTransition$8(StateTransitionController.java:177)
+	at org.gradle.internal.work.DefaultSynchronizer.withLock(DefaultSynchronizer.java:46)
+	at org.gradle.internal.model.StateTransitionController.tryTransition(StateTransitionController.java:177)
+	at org.gradle.internal.build.DefaultBuildLifecycleController.executeTasks(DefaultBuildLifecycleController.java:304)
+	at org.gradle.internal.build.DefaultBuildWorkGraphController$DefaultBuildWorkGraph.runWork(DefaultBuildWorkGraphController.java:220)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.withLocks(DefaultWorkerLeaseService.java:263)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.runAsWorkerThread(DefaultWorkerLeaseService.java:127)
+	at org.gradle.composite.internal.DefaultBuildController.doRun(DefaultBuildController.java:181)
+	at org.gradle.composite.internal.DefaultBuildController.access$000(DefaultBuildController.java:50)
+	at org.gradle.composite.internal.DefaultBuildController$BuildOpRunnable.lambda$run$0(DefaultBuildController.java:198)
+	at org.gradle.internal.operations.CurrentBuildOperationRef.with(CurrentBuildOperationRef.java:85)
+	at org.gradle.composite.internal.DefaultBuildController$BuildOpRunnable.run(DefaultBuildController.java:198)
 	at org.gradle.internal.concurrent.ExecutorPolicy$CatchAndRecordFailures.onExecute(ExecutorPolicy.java:64)
 	at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManagedExecutor.java:48)
 Caused by: org.gradle.api.internal.tasks.compile.CompilationFailedException: Compilation failed; see the compiler output below.
-Note: Recompile with -Xlint:deprecation for details./home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/BsodMod.java:36: error: incompatible types: cannot infer type-variable(s) T
-            modContainer.registerExtensionPoint(
-                                               ^
-    (argument mismatch; bad return type in lambda expression
-      IConfigScreenFactory cannot be converted to Screen)
-  where T is a type-variable:
-    T extends IExtensionPoint declared in method <T>registerExtensionPoint(Class<T>,T)Note: /home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/dump/MinidumpGenerator.java uses or overrides a deprecated API./home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/BsodMod.java:36: error: reference to registerExtensionPoint is ambiguous
-            modContainer.registerExtensionPoint(
+Note: Some messages have been simplified; recompile with -Xdiags:verbose to get full outputNote: Recompile with -Xlint:deprecation for details./home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/client/BsodScreen.java:119: error: no suitable method found for drawString(Font,FormattedText,int,int,int,boolean)
+                graphics.drawString(font, lines.get(i), left, y, 0xE6FFFFFF, false);
                         ^
-  both method <T#1>registerExtensionPoint(Class<T#1>,T#1) in ModContainer and method <T#2>registerExtensionPoint(Class<T#2>,Supplier<T#2>) in ModContainer match
-  where T#1,T#2 are type-variables:
-    T#1 extends IExtensionPoint declared in method <T#1>registerExtensionPoint(Class<T#1>,T#1)
-    T#2 extends IExtensionPoint declared in method <T#2>registerExtensionPoint(Class<T#2>,Supplier<T#2>)
+    method GuiGraphics.drawString(Font,String,int,int,int,boolean) is not applicable
+      (argument mismatch; FormattedText cannot be converted to String)
+    method GuiGraphics.drawString(Font,String,float,float,int,boolean) is not applicable
+      (argument mismatch; FormattedText cannot be converted to String)
+    method GuiGraphics.drawString(Font,FormattedCharSequence,int,int,int,boolean) is not applicable
+      (argument mismatch; FormattedText cannot be converted to FormattedCharSequence)
+    method GuiGraphics.drawString(Font,FormattedCharSequence,float,float,int,boolean) is not applicable
+      (argument mismatch; FormattedText cannot be converted to FormattedCharSequence)
+    method GuiGraphics.drawString(Font,Component,int,int,int,boolean) is not applicable
+      (argument mismatch; FormattedText cannot be converted to Component)/home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/client/BsodScreen.java:111: error: incompatible types: List<FormattedCharSequence> cannot be converted to List<FormattedText>
+                    font.split(FormattedText.of(state.aiAnalysis.strip()), panelWidth);
+                              ^Note: /home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/dump/MinidumpGenerator.java uses or overrides a deprecated API.
 2 errors
 	at org.gradle.api.internal.tasks.compile.JdkJavaCompiler.execute(JdkJavaCompiler.java:84)
 	at org.gradle.api.internal.tasks.compile.JdkJavaCompiler.execute(JdkJavaCompiler.java:46)
@@ -290,6 +324,35 @@ Note: Recompile with -Xlint:deprecation for details./home/runner/work/Fixed-the-
 	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph$BuildOperationAwareExecutionAction.execute(DefaultTaskExecutionGraph.java:303)
 	at org.gradle.execution.plan.DefaultPlanExecutor$ExecutorWorker.execute(DefaultPlanExecutor.java:459)
 	at org.gradle.execution.plan.DefaultPlanExecutor$ExecutorWorker.run(DefaultPlanExecutor.java:376)
+	at org.gradle.execution.plan.DefaultPlanExecutor.process(DefaultPlanExecutor.java:111)
+	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph.executeWithServices(DefaultTaskExecutionGraph.java:138)
+	at org.gradle.execution.taskgraph.DefaultTaskExecutionGraph.execute(DefaultTaskExecutionGraph.java:123)
+	at org.gradle.execution.SelectedTaskExecutionAction.execute(SelectedTaskExecutionAction.java:35)
+	at org.gradle.execution.DryRunBuildExecutionAction.execute(DryRunBuildExecutionAction.java:51)
+	at org.gradle.execution.BuildOperationFiringBuildWorkerExecutor$ExecuteTasks.call(BuildOperationFiringBuildWorkerExecutor.java:54)
+	at org.gradle.execution.BuildOperationFiringBuildWorkerExecutor$ExecuteTasks.call(BuildOperationFiringBuildWorkerExecutor.java:43)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:209)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:204)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:66)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:59)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:166)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:59)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.call(DefaultBuildOperationRunner.java:53)
+	at org.gradle.execution.BuildOperationFiringBuildWorkerExecutor.execute(BuildOperationFiringBuildWorkerExecutor.java:40)
+	at org.gradle.internal.build.DefaultBuildLifecycleController.lambda$executeTasks$10(DefaultBuildLifecycleController.java:313)
+	at org.gradle.internal.model.StateTransitionController.doTransition(StateTransitionController.java:266)
+	at org.gradle.internal.model.StateTransitionController.lambda$tryTransition$8(StateTransitionController.java:177)
+	at org.gradle.internal.work.DefaultSynchronizer.withLock(DefaultSynchronizer.java:46)
+	at org.gradle.internal.model.StateTransitionController.tryTransition(StateTransitionController.java:177)
+	at org.gradle.internal.build.DefaultBuildLifecycleController.executeTasks(DefaultBuildLifecycleController.java:304)
+	at org.gradle.internal.build.DefaultBuildWorkGraphController$DefaultBuildWorkGraph.runWork(DefaultBuildWorkGraphController.java:220)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.withLocks(DefaultWorkerLeaseService.java:263)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.runAsWorkerThread(DefaultWorkerLeaseService.java:127)
+	at org.gradle.composite.internal.DefaultBuildController.doRun(DefaultBuildController.java:181)
+	at org.gradle.composite.internal.DefaultBuildController.access$000(DefaultBuildController.java:50)
+	at org.gradle.composite.internal.DefaultBuildController$BuildOpRunnable.lambda$run$0(DefaultBuildController.java:198)
+	at org.gradle.internal.operations.CurrentBuildOperationRef.with(CurrentBuildOperationRef.java:85)
+	at org.gradle.composite.internal.DefaultBuildController$BuildOpRunnable.run(DefaultBuildController.java:198)
 	at org.gradle.internal.concurrent.ExecutorPolicy$CatchAndRecordFailures.onExecute(ExecutorPolicy.java:64)
 	at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManagedExecutor.java:48)
 
