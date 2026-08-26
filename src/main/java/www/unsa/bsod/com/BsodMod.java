@@ -31,11 +31,12 @@ public final class BsodMod {
         modContainer.registerConfig(ModConfig.Type.STARTUP, Config.SPEC);
 
         // Give the Mods menu a real Config button instead of the dead default.
+        // Verified against neoforge-21.1.248: net.neoforged.neoforge.client.gui.IConfigScreenFactory
         if (FMLEnvironment.dist == Dist.CLIENT) {
             modContainer.registerExtensionPoint(
-                    net.neoforged.neoforge.client.ConfigScreenHandler.ConfigScreenFactory.class,
-                    () -> new net.neoforged.neoforge.client.ConfigScreenHandler.ConfigScreenFactory(
-                            (mc, parent) -> new www.unsa.bsod.com.client.BsodConfigScreen(parent)));
+                    net.neoforged.neoforge.client.gui.IConfigScreenFactory.class,
+                    () -> (net.neoforged.neoforge.client.gui.IConfigScreenFactory)
+                            (container, parent) -> new www.unsa.bsod.com.client.BsodConfigScreen(parent));
         }
 
         modEventBus.addListener(this::onCommonSetup);

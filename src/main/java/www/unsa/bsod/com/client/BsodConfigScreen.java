@@ -139,10 +139,6 @@ public final class BsodConfigScreen extends Screen {
         }
 
         @Override
-        public void onPress() {
-        }
-
-        @Override
         protected void updateWidgetNarration(net.minecraft.client.gui.narration.NarrationElementOutput output) {
         }
     }
