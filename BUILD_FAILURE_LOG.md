@@ -11,12 +11,12 @@ Creating Minecraft artifacts without recompilation.
 Loaded 131 artifacts from /home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/build/tmp/createMinecraftArtifacts/nfrt_artifact_manifest.properties
 [1m*** Started working on [4mdownloadJson[0m[0m
  [1m[92m✓[0m Completed [4mdownloadJson[0m in 0.02s
-[1m*** Started working on [4mdownloadClient[0m[0m
 [1m*** Started working on [4mdownloadServer[0m[0m
+[1m*** Started working on [4mdownloadClient[0m[0m
 [1m*** Started working on [4mdownloadClientMappings[0m[0m
- [1m[92m✓[0m Completed [4mdownloadClient[0m in 0.04s
+ [1m[92m✓[0m Completed [4mdownloadClient[0m in 0.03s
  [1m[92m✓[0m Completed [4mdownloadServer[0m in 0.04s
- [1m[92m✓[0m Completed [4mdownloadClientMappings[0m in 0.04s
+ [1m[92m✓[0m Completed [4mdownloadClientMappings[0m in 0.03s
 [1m*** Started working on [4mstripClient[0m[0m
  [1m[92m♻[0m Used cache of [4mstripClient[0m in 0.00s
 [1m*** Started working on [4mmergeMappings[0m[0m
@@ -37,18 +37,22 @@ Loaded 131 artifacts from /home/runner/work/Fixed-the-bug-where-there-was-no-BSO
  [1m[92m♻[0m Used cache of [4mapplyDevTransforms[0m in 0.00s
 [1m*** Started working on [4mbinaryWithNeoForge[0m[0m
  [1m[92m♻[0m Used cache of [4mbinaryWithNeoForge[0m in 0.00s
-Total runtime: 1.00s
+Total runtime: 0.99s
 
 
 > Task :compileJava FROM-CACHE
 > Task :compileNativeHook
 
 > Task :compileNativeHookLinux FAILED
-src/main/cpp/bsod_overlay_linux.c:15:10: fatal error: X11/extensions/shape.h: No such file or directory
-   15 | #include <X11/extensions/shape.h>
-      |          ^~~~~~~~~~~~~~~~~~~~~~~~
-compilation terminated.
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_3-1787735387052.json
+src/main/cpp/bsod_overlay_linux.c: In function ‘main’:
+src/main/cpp/bsod_overlay_linux.c:90:5: error: too many arguments to function ‘XAllocColor’
+   90 |     XAllocColor(dpy, cmap, &blueExact, &blue);
+      |     ^~~~~~~~~~~
+In file included from src/main/cpp/bsod_overlay_linux.c:13:
+/usr/include/X11/Xlib.h:1972:15: note: declared here
+ 1972 | extern Status XAllocColor(
+      |               ^~~~~~~~~~~
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_3-1787735810829.json
 
 [Incubating] Problems report is available at: file:///home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/build/reports/problems/problems-report.html
 
@@ -246,6 +250,6 @@ You can use '--warning-mode all' to show the individual deprecation warnings and
 
 For more on this, please refer to https://docs.gradle.org/8.12/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
 
-BUILD FAILED in 20s
+BUILD FAILED in 17s
 4 actionable tasks: 3 executed, 1 from cache
 ```
