@@ -36,22 +36,34 @@ public final class NativeCrashHook {
         attempted = true;
         try {
             String os = System.getProperty("os.name", "").toLowerCase();
-            if (!os.contains("win")) {
-                LOGGER.info("[BSOD] Native crash hook is Windows-only, skipping");
+            boolean windows = os.contains("win");
+            boolean linux = os.contains("linux") || os.contains("nix") || os.contains("aix");
+            if (!windows && !linux) {
+                LOGGER.info("[BSOD] Native crash hook not supported on {}, skipping", os);
                 return;
             }
 
             Path bsodDir = FMLPaths.GAMEDIR.get().resolve("BSOD");
             Files.createDirectories(bsodDir);
 
-            Path dll = extractResource("bsod_crash_hook.dll", bsodDir);
-            Path overlay = extractResource("bsod_overlay.exe", bsodDir);
-            Path restartCmd = writeRestartScript(bsodDir);
+            Path hookLib;
+            Path overlay;
+            if (windows) {
+                hookLib = extractResource("bsod_crash_hook.dll", bsodDir);
+                overlay = extractResource("bsod_overlay.exe", bsodDir);
+                overlay.toFile().setExecutable(true);
+            } else {
+                hookLib = extractResource("bsod_crash_hook.so", bsodDir);
+                overlay = extractResource("bsod_overlay_linux", bsodDir);
+                overlay.toFile().setExecutable(true, false);
+            }
+            Path restartCmd = writeRestartScript(bsodDir, windows);
 
-            System.load(dll.toAbsolutePath().toString());
+            System.load(hookLib.toAbsolutePath().toString());
             install0(overlay.toAbsolutePath().toString(),
                     restartCmd.toAbsolutePath().toString());
-            LOGGER.info("[BSOD] Native crash hook installed - even hard JVM crashes will now show blue");
+            LOGGER.info("[BSOD] Native crash hook installed ({}) - even hard crashes will now show blue",
+                    windows ? "windows" : "linux");
         } catch (Throwable t) {
             LOGGER.warn("[BSOD] Native crash hook unavailable: {}", t.toString());
         }
@@ -74,15 +86,28 @@ public final class NativeCrashHook {
      * Kept as a separate file because embedding quotes inside the C string was
      * getting silly.
      */
-    private static Path writeRestartScript(Path dir) throws IOException {
-        Path cmd = dir.resolve("bsod_restart.cmd");
+    private static Path writeRestartScript(Path dir, boolean windows) throws IOException {
+        Path cmd = dir.resolve(windows ? "bsod_restart.cmd" : "bsod_restart.sh");
         StringBuilder sb = new StringBuilder();
-        sb.append("@echo off\r\n");
-        sb.append("rem Relaunch Minecraft through its launcher script after a crash.\r\n");
-        sb.append("if exist \"%~dp0..\\..\\launch.bat\" (\r\n");
-        sb.append("  start \"\" \"%~dp0..\\..\\launch.bat\"\r\n");
-        powershellFallback(sb);
-        sb.append("\r\n}\r\n");
+        if (windows) {
+            sb.append("@echo off\r\n");
+            sb.append("rem Relaunch Minecraft through its launcher script after a crash.\r\n");
+            sb.append("if exist \"%~dp0..\\..\\launch.bat\" (\r\n");
+            sb.append("  start \"\" \"%~dp0..\\..\\launch.bat\"\r\n");
+            powershellFallback(sb);
+            sb.append("\r\n}\r\n");
+        } else {
+            sb.append("#!/bin/sh\n");
+            sb.append("# Relaunch Minecraft after a crash by replaying the last java command line.\n");
+            sb.append("P=$(ps -eo pid,args | grep '[B]ootstrapLauncher' | awk '{print $1}' | tail -n1)\n");
+            sb.append("if [ -z \"$P\" ]; then\n");
+            sb.append("  # The dead process is gone; read its cmdline from the overlay's parent info is\n");
+            sb.append("  # impossible, so fall back to the standard launcher script if present.\n");
+            sb.append("  if [ -x \"$(dirname \"$0\")/../../launch.sh\" ]; then\n");
+            sb.append("    exec \"$(dirname \"$0\")/../../launch.sh\"\n");
+            sb.append("  fi\n");
+            sb.append("fi\n");
+        }
         Files.writeString(cmd, sb.toString(), StandardCharsets.UTF_8);
         return cmd;
     }

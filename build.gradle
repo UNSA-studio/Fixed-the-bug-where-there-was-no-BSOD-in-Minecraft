@@ -62,7 +62,7 @@ tasks.register('compileNativeHook') {
                     '-lkernel32', '-luser32',
                     '-o', outDir.get().file('bsod_crash_hook.dll').asFile
         }
-        exec {
+                exec {
             commandLine 'x86_64-w64-mingw32-gcc', '-mwindows', '-O2',
                     'src/main/cpp/bsod_overlay.c',
                     '-luser32', '-lgdi32', '-lshell32',
@@ -71,10 +71,38 @@ tasks.register('compileNativeHook') {
     }
 }
 
+// Linux native artifacts are compiled natively on the CI runner.
+tasks.register('compileNativeHookLinux') {
+    def outDir = layout.buildDirectory.dir('native')
+    outputs.file(outDir.map { it.file('bsod_crash_hook.so') })
+    doLast {
+        outDir.get().asFile.mkdirs()
+        exec {
+            commandLine 'gcc', '-shared', '-fPIC', '-O2',
+                    "-I${jdkHome}/include",
+                    "-I${jdkHome}/include/linux",
+                    'src/main/cpp/bsod_crash_hook_linux.c',
+                    '-o', outDir.get().file('bsod_crash_hook.so').asFile
+        }
+        exec {
+            commandLine 'gcc', '-O2',
+                    'src/main/cpp/bsod_overlay_linux.c',
+                    '-lX11', '-o', outDir.get().file('bsod_overlay_linux').asFile
+        }
+    }
+}
+
+tasks.named('build').configure {
+    dependsOn 'compileNativeHookLinux'
+}
+
 tasks.named('processResources', ProcessResources).configure {
     dependsOn 'compileNativeHook'
     from(layout.buildDirectory.dir('native')) {
         include '*.dll'
+        include 'bsod_crash_hook.so'
+        include 'bsod_overlay_linux'
+        include '*.exe'
     }
 }
 
