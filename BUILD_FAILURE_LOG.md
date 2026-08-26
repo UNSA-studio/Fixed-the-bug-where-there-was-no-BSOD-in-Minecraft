@@ -11,12 +11,12 @@ Creating Minecraft artifacts without recompilation.
 Loaded 131 artifacts from /home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/build/tmp/createMinecraftArtifacts/nfrt_artifact_manifest.properties
 [1m*** Started working on [4mdownloadJson[0m[0m
  [1m[92m✓[0m Completed [4mdownloadJson[0m in 0.02s
-[1m*** Started working on [4mdownloadServer[0m[0m
 [1m*** Started working on [4mdownloadClient[0m[0m
+[1m*** Started working on [4mdownloadServer[0m[0m
 [1m*** Started working on [4mdownloadClientMappings[0m[0m
- [1m[92m✓[0m Completed [4mdownloadClient[0m in 0.04s
- [1m[92m✓[0m Completed [4mdownloadClientMappings[0m in 0.04s
- [1m[92m✓[0m Completed [4mdownloadServer[0m in 0.04s
+ [1m[92m✓[0m Completed [4mdownloadServer[0m in 0.03s
+ [1m[92m✓[0m Completed [4mdownloadClient[0m in 0.03s
+ [1m[92m✓[0m Completed [4mdownloadClientMappings[0m in 0.03s
 [1m*** Started working on [4mstripClient[0m[0m
  [1m[92m♻[0m Used cache of [4mstripClient[0m in 0.00s
 [1m*** Started working on [4mmergeMappings[0m[0m
@@ -37,25 +37,30 @@ Loaded 131 artifacts from /home/runner/work/Fixed-the-bug-where-there-was-no-BSO
  [1m[92m♻[0m Used cache of [4mapplyDevTransforms[0m in 0.00s
 [1m*** Started working on [4mbinaryWithNeoForge[0m[0m
  [1m[92m♻[0m Used cache of [4mbinaryWithNeoForge[0m in 0.00s
-Total runtime: 0.99s
+Total runtime: 1.02s
 
 
 > Task :compileJava
-/home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/BsodMod.java:36: error: package net.neoforged.neoforge.client.ConfigScreenHandler does not exist
-                    net.neoforged.neoforge.client.ConfigScreenHandler.ConfigScreenFactory.class,
-                                                                     ^
-/home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/BsodMod.java:37: error: package net.neoforged.neoforge.client.ConfigScreenHandler does not exist
-                    () -> new net.neoforged.neoforge.client.ConfigScreenHandler.ConfigScreenFactory(
-                                                                               ^
-/home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/client/BsodConfigScreen.java:141: error: method does not override or implement a method from a supertype
-        @Override
-        ^
+/home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/BsodMod.java:36: error: reference to registerExtensionPoint is ambiguous
+            modContainer.registerExtensionPoint(
+                        ^
+  both method <T#1>registerExtensionPoint(Class<T#1>,T#1) in ModContainer and method <T#2>registerExtensionPoint(Class<T#2>,Supplier<T#2>) in ModContainer match
+  where T#1,T#2 are type-variables:
+    T#1 extends IExtensionPoint declared in method <T#1>registerExtensionPoint(Class<T#1>,T#1)
+    T#2 extends IExtensionPoint declared in method <T#2>registerExtensionPoint(Class<T#2>,Supplier<T#2>)
+/home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/BsodMod.java:36: error: incompatible types: cannot infer type-variable(s) T
+            modContainer.registerExtensionPoint(
+                                               ^
+    (argument mismatch; bad return type in lambda expression
+      IConfigScreenFactory cannot be converted to Screen)
+  where T is a type-variable:
+    T extends IExtensionPoint declared in method <T>registerExtensionPoint(Class<T>,T)
 Note: /home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/dump/MinidumpGenerator.java uses or overrides a deprecated API.
 Note: Recompile with -Xlint:deprecation for details.
-3 errors
+2 errors
 
 > Task :compileJava FAILED
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_3-1787720923213.json
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_3-1787721429048.json
 
 [Incubating] Problems report is available at: file:///home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/build/reports/problems/problems-report.html
 
@@ -64,15 +69,20 @@ FAILURE: Build failed with an exception.
 * What went wrong:
 Execution failed for task ':compileJava'.
 > Compilation failed; see the compiler output below.
-  Note: Recompile with -Xlint:deprecation for details./home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/BsodMod.java:36: error: package net.neoforged.neoforge.client.ConfigScreenHandler does not exist
-                      net.neoforged.neoforge.client.ConfigScreenHandler.ConfigScreenFactory.class,
-                                                                       ^
-  /home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/BsodMod.java:37: error: package net.neoforged.neoforge.client.ConfigScreenHandler does not exist
-                      () -> new net.neoforged.neoforge.client.ConfigScreenHandler.ConfigScreenFactory(
-                                                                                 ^/home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/client/BsodConfigScreen.java:141: error: method does not override or implement a method from a supertype
-          @Override
-          ^Note: /home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/dump/MinidumpGenerator.java uses or overrides a deprecated API.
-  3 errors
+  Note: Recompile with -Xlint:deprecation for details./home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/BsodMod.java:36: error: incompatible types: cannot infer type-variable(s) T
+              modContainer.registerExtensionPoint(
+                                                 ^
+      (argument mismatch; bad return type in lambda expression
+        IConfigScreenFactory cannot be converted to Screen)
+    where T is a type-variable:
+      T extends IExtensionPoint declared in method <T>registerExtensionPoint(Class<T>,T)Note: /home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/dump/MinidumpGenerator.java uses or overrides a deprecated API./home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/BsodMod.java:36: error: reference to registerExtensionPoint is ambiguous
+              modContainer.registerExtensionPoint(
+                          ^
+    both method <T#1>registerExtensionPoint(Class<T#1>,T#1) in ModContainer and method <T#2>registerExtensionPoint(Class<T#2>,Supplier<T#2>) in ModContainer match
+    where T#1,T#2 are type-variables:
+      T#1 extends IExtensionPoint declared in method <T#1>registerExtensionPoint(Class<T#1>,T#1)
+      T#2 extends IExtensionPoint declared in method <T#2>registerExtensionPoint(Class<T#2>,Supplier<T#2>)
+  2 errors
 
 * Try:
 > Check your code and dependencies to fix the compilation error(s)
@@ -113,15 +123,20 @@ org.gradle.api.tasks.TaskExecutionException: Execution failed for task ':compile
 	at org.gradle.internal.concurrent.ExecutorPolicy$CatchAndRecordFailures.onExecute(ExecutorPolicy.java:64)
 	at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManagedExecutor.java:48)
 Caused by: org.gradle.api.internal.tasks.compile.CompilationFailedException: Compilation failed; see the compiler output below.
-Note: Recompile with -Xlint:deprecation for details./home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/BsodMod.java:36: error: package net.neoforged.neoforge.client.ConfigScreenHandler does not exist
-                    net.neoforged.neoforge.client.ConfigScreenHandler.ConfigScreenFactory.class,
-                                                                     ^
-/home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/BsodMod.java:37: error: package net.neoforged.neoforge.client.ConfigScreenHandler does not exist
-                    () -> new net.neoforged.neoforge.client.ConfigScreenHandler.ConfigScreenFactory(
-                                                                               ^/home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/client/BsodConfigScreen.java:141: error: method does not override or implement a method from a supertype
-        @Override
-        ^Note: /home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/dump/MinidumpGenerator.java uses or overrides a deprecated API.
-3 errors
+Note: Recompile with -Xlint:deprecation for details./home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/BsodMod.java:36: error: incompatible types: cannot infer type-variable(s) T
+            modContainer.registerExtensionPoint(
+                                               ^
+    (argument mismatch; bad return type in lambda expression
+      IConfigScreenFactory cannot be converted to Screen)
+  where T is a type-variable:
+    T extends IExtensionPoint declared in method <T>registerExtensionPoint(Class<T>,T)Note: /home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/dump/MinidumpGenerator.java uses or overrides a deprecated API./home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/src/main/java/www/unsa/bsod/com/BsodMod.java:36: error: reference to registerExtensionPoint is ambiguous
+            modContainer.registerExtensionPoint(
+                        ^
+  both method <T#1>registerExtensionPoint(Class<T#1>,T#1) in ModContainer and method <T#2>registerExtensionPoint(Class<T#2>,Supplier<T#2>) in ModContainer match
+  where T#1,T#2 are type-variables:
+    T#1 extends IExtensionPoint declared in method <T#1>registerExtensionPoint(Class<T#1>,T#1)
+    T#2 extends IExtensionPoint declared in method <T#2>registerExtensionPoint(Class<T#2>,Supplier<T#2>)
+2 errors
 	at org.gradle.api.internal.tasks.compile.JdkJavaCompiler.execute(JdkJavaCompiler.java:84)
 	at org.gradle.api.internal.tasks.compile.JdkJavaCompiler.execute(JdkJavaCompiler.java:46)
 	at org.gradle.api.internal.tasks.compile.NormalizingJavaCompiler.delegateAndHandleErrors(NormalizingJavaCompiler.java:98)
@@ -279,6 +294,6 @@ Note: Recompile with -Xlint:deprecation for details./home/runner/work/Fixed-the-
 	at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManagedExecutor.java:48)
 
 
-BUILD FAILED in 15s
+BUILD FAILED in 16s
 2 actionable tasks: 2 executed
 ```
