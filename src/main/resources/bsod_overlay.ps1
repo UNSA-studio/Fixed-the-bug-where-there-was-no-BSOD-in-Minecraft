@@ -1,9 +1,13 @@
 param(
-    [string]$StopCode = "C0000005"
+    [string]$StopCode = "C0000005",
+    [int]$WinL = -1,
+    [int]$WinT = -1,
+    [int]$WinR = -1,
+    [int]$WinB = -1
 )
 
-# Fullscreen topmost Windows-blue overlay shown while the JVM writes its own
-# hs_err report after a native crash. Can relaunch the game once it exits.
+# Blue overlay drawn exactly over the (now dead) Minecraft window while the
+# JVM writes its own hs_err report after a native crash. Can relaunch the game.
 Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase
 
 $blue = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#0078D7")
@@ -14,23 +18,34 @@ $window.WindowStyle = 'None'
 $window.ResizeMode = 'NoResize'
 $window.Topmost = $true
 $window.Background = $blue
-$window.WindowStartupLocation = 'Manual'
-$window.Left = 0; $window.Top = 0
-$window.Width = [System.Windows.SystemParameters]::PrimaryScreenWidth
-$window.Height = [System.Windows.SystemParameters]::PrimaryScreenHeight
+$window.ShowInTaskbar = $false
+
+if ($WinR -gt $WinL -and $WinB -gt $WinT -and $WinL -ge 0 -and $WinT -ge 0) {
+    # Sit exactly where the Minecraft window was.
+    $window.WindowStartupLocation = 'Manual'
+    $window.Left = $WinL
+    $window.Top = $WinT
+    $window.Width = $WinR - $WinL
+    $window.Height = $WinB - $WinT
+} else {
+    # Fallback: centered window roughly the size of the game window.
+    $window.WindowStartupLocation = 'CenterScreen'
+    $window.Width = 854
+    $window.Height = 500
+}
 $window.KeyDown.Add({ if ($_.Key -eq 'Escape') { $window.Close() } })
 
 $panel = New-Object System.Windows.Controls.StackPanel
-$panel.Margin = '120,100,0,0'
+$panel.Margin = '48,40,48,24'
 
 $face = New-Object System.Windows.Controls.TextBlock
 $face.Text = ':('
-$face.FontSize = 110
+$face.FontSize = 72
 $face.FontFamily = 'Segoe UI'
 $face.Foreground = $white
 $panel.Children.Add($face) | Out-Null
 
-function Add-Line([string]$text, [double]$size = 22, [double]$topMargin = 14) {
+function Add-Line([string]$text, [double]$size = 16, [double]$topMargin = 10) {
     $tb = New-Object System.Windows.Controls.TextBlock
     $tb.Text = $text
     $tb.FontSize = $size
