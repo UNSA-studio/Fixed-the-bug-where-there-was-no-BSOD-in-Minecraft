@@ -6,6 +6,7 @@ import io.nayuki.qrcodegen.QrCode;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.FormattedText;
 import www.unsa.bsod.com.Config;
 import www.unsa.bsod.com.crash.BsodState;
 
@@ -102,8 +103,36 @@ public final class BsodScreen extends Screen {
             y += font.lineHeight + 2;
         }
 
-        // ---- QR code block ----
-        if (qrCode != null) {
+        // ---- AI analysis panel: shows what the model actually said ----
+        boolean showQr = true;
+        if (state.aiAnalysis != null) {
+            int panelWidth = Math.min(w - left - 24, 420);
+            java.util.List<FormattedText> lines =
+                    font.split(FormattedText.of(state.aiAnalysis.strip()), panelWidth);
+            int maxLines = Math.min(lines.size(), 8);
+
+            graphics.drawString(font, "AI analysis:", left, y, WHITE, false);
+            y += font.lineHeight + 2;
+
+            int i = 0;
+            for (; i < maxLines; i++) {
+                graphics.drawString(font, lines.get(i), left, y, 0xE6FFFFFF, false);
+                y += font.lineHeight;
+            }
+            if (lines.size() > maxLines) {
+                graphics.drawString(font,
+                        "... full analysis appended to the saved report",
+                        left, y, 0xB3FFFFFF, false);
+                y += font.lineHeight;
+            }
+            showQr = false;
+        } else if (state.aiFailed) {
+            graphics.drawString(font, "AI analysis unavailable - report saved locally.",
+                    left, y, 0xB3FFFFFF, false);
+        }
+
+        // ---- QR code block (hidden while the AI panel is up, space is tight) ----
+        if (qrCode != null && showQr) {
             int module = Math.max(2, h / 72);
             int qrPixels = qrCode.size * module;
             int qrY = y + 8;
