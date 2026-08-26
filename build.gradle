@@ -57,7 +57,7 @@ tasks.register('compileNativeHook') {
         exec {
             commandLine 'x86_64-w64-mingw32-gcc', '-shared', '-O2',
                     "-I${jdkHome}/include",
-                    "-I${jdkHome}/include/win32",
+                    "-I${jdkHome}/include/linux",
                     'src/main/cpp/bsod_crash_hook.c',
                     '-lkernel32', '-luser32',
                     '-o', outDir.get().file('bsod_crash_hook.dll').asFile
