@@ -4,14 +4,15 @@
 /*
  * BSOD native crash hook.
  *
- * Registers a vectored exception handler that runs BEFORE HotSpot's own
- * handlers. For fatal exception codes we launch a detached PowerShell
- * overlay that draws the classic blue screen while the JVM finishes its
- * own crash reporting (hs_err log). We then always return
- * EXCEPTION_CONTINUE_SEARCH so JVM behaviour stays untouched.
+ * Uses SetUnhandledExceptionFilter: it fires ONLY when no frame-based handler
+ * (SEH) claims the exception. That is exactly the "genuinely dying" case.
+ * HotSpot's benign exceptions - including its implicit-null-check page faults
+ * - are all handled by SEH long before we would ever see them, so there is no
+ * risk of the overlay appearing while the game is still running (which the
+ * previous AddVectoredExceptionHandler approach got hilariously wrong).
  *
- * Deliberately crash-context-safe: the handler only touches kernel32/user32
- * string APIs and CreateProcessA - no CRT heap allocations.
+ * In the filter we spawn the overlay and return EXCEPTION_CONTINUE_SEARCH so
+ * the JVM continues with its normal crash reporting (hs_err log).
  */
 
 static char g_overlayPath[MAX_PATH];
@@ -37,14 +38,8 @@ static BOOL CALLBACK FindMcWindowProc(HWND hwnd, LPARAM lParam) {
     return TRUE;
 }
 
-static LONG WINAPI BsodVectoredHandler(PEXCEPTION_POINTERS info) {
+static LONG WINAPI BsodUnhandledFilter(PEXCEPTION_POINTERS info) {
     DWORD code = (info && info->ExceptionRecord) ? info->ExceptionRecord->ExceptionCode : 0;
-
-    /* Access violation, fail-fast, integer div-by-zero, breakpoint. */
-    if (code != 0xC0000005ul && code != 0xC0000409ul &&
-        code != 0xC0000094ul && code != 0x80000003ul) {
-        return EXCEPTION_CONTINUE_SEARCH;
-    }
 
     /* Capture the MC window rectangle so the overlay can sit exactly where
      * the game window was, instead of covering the whole desktop. */
@@ -82,6 +77,7 @@ static LONG WINAPI BsodVectoredHandler(PEXCEPTION_POINTERS info) {
                        NULL, NULL, &si, &pi);
     }
 
+    /* Let the JVM do its own crash reporting and exit as usual. */
     return EXCEPTION_CONTINUE_SEARCH;
 }
 
@@ -96,5 +92,5 @@ Java_www_unsa_bsod_com_crash_NativeCrashHook_install0(JNIEnv* env, jclass cls,
     (*env)->ReleaseStringUTFChars(env, overlayPath, s);
     (*env)->ReleaseStringUTFChars(env, restartPath, r);
 
-    AddVectoredExceptionHandler(1, BsodVectoredHandler);
+    SetUnhandledExceptionFilter(BsodUnhandledFilter);
 }

@@ -4,16 +4,46 @@
 /*
  * BSOD overlay - a tiny standalone Win32 program.
  *
- * Spawned by the vectored exception handler at the instant the JVM dies from
- * a native crash. Draws the classic Windows-blue screen exactly over the
- * (now dead) Minecraft window rectangle, shows a live percentage, waits for
- * the game process to disappear, relaunches it via bsod_restart.cmd, quits.
+ * Spawned ONLY by the unhandled-exception filter, i.e. when the JVM is
+ * genuinely dying. Draws the classic Windows 10 blue screen exactly over the
+ * dead Minecraft window, QR code included, waits for the game process to
+ * disappear, relaunches it via the restart script, quits.
  *
- * Deliberately dependency-free: pure user32/gdi32/shell32. No CRT heap use,
- * no network, no scripting engines - starts in milliseconds.
+ * The window is a plain WS_POPUP: no TOPMOST, draggable by mouse - it stays
+ * inside the game window's old rectangle and never covers other apps.
  *
- * argv: [1]=stop code hex  [2..5]=window l,t,r,b  [6]=game pid
+ * argv: [1]=stop code hex  [2..5]=window l,t,r,b  [6]=game pid  [7]=restart cmd
  */
+
+/* QR for https://www.minecraft.net, 25x25, ECC M. */
+static const int QR_SIZE = 25;
+static const unsigned char QR_BITS[25][25] = {
+    {1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1},
+    {1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 1},
+    {1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1},
+    {1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 1, 1, 0, 0, 1, 0, 1, 1, 1, 0, 1},
+    {1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 1, 1, 0, 1},
+    {1, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 1},
+    {1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1},
+    {0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0},
+    {1, 0, 1, 1, 1, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0},
+    {0, 0, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0},
+    {1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1},
+    {1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 1},
+    {1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 1, 1, 1},
+    {1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 0},
+    {1, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1},
+    {1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 1, 0, 0, 0, 1},
+    {1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 0},
+    {0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0},
+    {1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1},
+    {1, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 1},
+    {1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0},
+    {1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 1},
+    {1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 1, 1, 0, 1},
+    {1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 1, 1, 1, 0, 0, 1},
+    {1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1},
+};
 
 static char  g_codeText[32];
 static DWORD g_gamePid;
@@ -22,12 +52,15 @@ static char  g_restartCmd[MAX_PATH * 2];
 static int  g_ticks = 0;
 static int  g_percent = 0;
 static int  g_relaunchDone = 0;
-static char g_status[160] = "Collecting error info...";
+static char g_status[160] = "";
 
 static HFONT g_faceFont;
 static HFONT g_bodyFont;
 static HFONT g_smallFont;
 static HFONT g_boldFont;
+
+static POINT g_dragOffset;
+static BOOL  g_dragging = FALSE;
 
 static LRESULT CALLBACK OverlayProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     switch (msg) {
@@ -66,7 +99,7 @@ static LRESULT CALLBACK OverlayProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
                 sei.nShow = SW_SHOWNORMAL;
                 ShellExecuteExA(&sei);
             }
-            SetTimer(hwnd, 2, 2500, NULL); /* brief goodbye, then quit */
+            SetTimer(hwnd, 2, 2500, NULL);
         } else {
             CloseHandle(proc);
             InvalidateRect(hwnd, NULL, TRUE);
@@ -84,51 +117,107 @@ static LRESULT CALLBACK OverlayProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         SetBkMode(dc, TRANSPARENT);
         SetTextColor(dc, RGB(255, 255, 255));
 
-        int x = 56;
-        int scale = w / 640;
-        if (scale < 1) {
-            scale = 1;
-        }
+        int margin = h / 10;
+        int x = margin + h / 14;
+        int y = margin;
 
         SelectObject(dc, g_faceFont);
-        TextOutA(dc, x, 24 * scale, ":(", 2);
+        TextOutA(dc, x, y, ":(", 2);
+        y += h / 5 + h / 22;
 
-        int y = 24 * scale + 120;
         SelectObject(dc, g_bodyFont);
         TextOutA(dc, x, y, "Your PC ran into a problem and needs to restart.", 47);
-        y += 34;
+        y += h / 17;
         TextOutA(dc, x, y,
                  "We're just collecting some error info, and then we'll restart for you.",
                  69);
-        y += 52;
+        y += h / 12;
 
         SelectObject(dc, g_boldFont);
         char pct[48];
         wsprintfA(pct, "%d%% complete", g_percent);
         TextOutA(dc, x, y, pct, lstrlenA(pct));
-        y += 44;
+        y += h / 9;
 
         SelectObject(dc, g_bodyFont);
-        TextOutA(dc, x, y, g_status, lstrlenA(g_status));
-        y += 40;
+        if (g_status[0]) {
+            TextOutA(dc, x, y, g_status, lstrlenA(g_status));
+            y += h / 14;
+        }
 
-        char stop[96];
+        /* ---- QR block, like the real thing: mid-screen, left aligned ---- */
+        int qrScale = h / 300;
+        if (qrScale < 2) {
+            qrScale = 2;
+        }
+        int qrPixels = QR_SIZE * qrScale;
+        if (qrPixels < w / 6) {
+            qrScale = w / 6 / QR_SIZE;
+            if (qrScale < 1) {
+                qrScale = 1;
+            }
+            qrPixels = QR_SIZE * qrScale;
+        }
+        int qrX = x;
+        int qrY = y + 6;
+        HBRUSH whiteBrush = CreateSolidBrush(RGB(255, 255, 255));
+        for (int row = 0; row < QR_SIZE; row++) {
+            for (int col = 0; col < QR_SIZE; col++) {
+                if (QR_BITS[row][col]) {
+                    RECT cell = { qrX + col * qrScale, qrY + row * qrScale,
+                                  qrX + (col + 1) * qrScale, qrY + (row + 1) * qrScale };
+                    FillRect(dc, &cell, whiteBrush);
+                }
+            }
+        }
+        DeleteObject(whiteBrush);
+
+        SelectObject(dc, g_bodyFont);
+        int tx = qrX + qrPixels + h / 30;
+        int ty = qrY + qrPixels / 2 - h / 28;
+        TextOutA(dc, tx, ty, "For more information about this issue", 37);
+        ty += h / 26;
+        TextOutA(dc, tx, ty, "and possible fixes, visit", 25);
+        ty += h / 26;
+        TextOutA(dc, tx, ty, "https://www.minecraft.net", 25);
+
+        /* ---- Stop code, bottom right like the real thing ---- */
+        SelectObject(dc, g_bodyFont);
+        char stop[128];
         wsprintfA(stop, "Stop code: %s", g_codeText);
-        TextOutA(dc, x, y, stop, lstrlenA(stop));
+        SIZE sz;
+        GetTextExtentPoint32A(dc, stop, lstrlenA(stop), &sz);
+        TextOutA(dc, w - sz.cx - h / 16, h - sz.cy - h / 14, stop, lstrlenA(stop));
 
-        SelectObject(dc, g_smallFont);
-        SetTextColor(dc, RGB(196, 222, 248));
-        TextOutA(dc, x, h - 36 * scale, "Press ESC to close this screen", 30);
         EndPaint(hwnd, &ps);
         break;
     }
+    case WM_LBUTTONDOWN:
+        /* Drag the window around instead of closing it. */
+        g_dragging = TRUE;
+        SetCapture(hwnd);
+        g_dragOffset.x = LOWORD(lp);
+        g_dragOffset.y = HIWORD(lp);
+        break;
+    case WM_MOUSEMOVE:
+        if (g_dragging) {
+            POINT p = { LOWORD(lp), HIWORD(lp) };
+            ClientToScreen(hwnd, &p);
+            RECT wr;
+            GetWindowRect(hwnd, &wr);
+            SetWindowPos(hwnd, NULL,
+                         p.x - g_dragOffset.x, p.y - g_dragOffset.y,
+                         0, 0, SWP_NOSIZE | SWP_NOZORDER);
+        }
+        break;
+    case WM_LBUTTONUP:
+        g_dragging = FALSE;
+        ReleaseCapture();
+        break;
     case WM_KEYDOWN:
         if (wp == VK_ESCAPE) {
             PostQuitMessage(0);
         }
-        break;
-    case WM_LBUTTONDOWN:
-        PostQuitMessage(0);
         break;
     case WM_DESTROY:
         PostQuitMessage(0);
@@ -175,7 +264,6 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE prev, LPSTR cmdLine, int show) {
 
     int left = l, top = t, width, height;
     if (r <= l || b <= t || l < 0 || t < 0) {
-        /* Fallback: centered, roughly the default MC window size. */
         width = GetSystemMetrics(SM_CXSCREEN) * 3 / 4;
         height = GetSystemMetrics(SM_CYSCREEN) * 3 / 4;
         left = (GetSystemMetrics(SM_CXSCREEN) - width) / 2;
@@ -185,7 +273,8 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE prev, LPSTR cmdLine, int show) {
         height = b - t;
     }
 
-    HWND hwnd = CreateWindowExA(WS_EX_TOPMOST | WS_EX_TOOLWINDOW,
+    /* Plain WS_POPUP: no TOPMOST, z-order stays normal, other apps are free. */
+    HWND hwnd = CreateWindowExA(0,
                                 "UnsaBsodOverlay", "BSOD",
                                 WS_POPUP | WS_VISIBLE,
                                 left, top, width, height,
@@ -198,15 +287,12 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE prev, LPSTR cmdLine, int show) {
     g_faceFont = CreateFontA(-(height / 5), 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
                              ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
                              CLEARTYPE_QUALITY, DEFAULT_PITCH, "Segoe UI");
-    g_bodyFont = CreateFontA(-(height / 22), 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
+    g_bodyFont = CreateFontA(-(height / 24), 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
                              ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
                              CLEARTYPE_QUALITY, DEFAULT_PITCH, "Segoe UI");
-    g_boldFont = CreateFontA(-(height / 17), 0, 0, 0, FW_SEMIBOLD, FALSE, FALSE, FALSE,
+    g_boldFont = CreateFontA(-(height / 19), 0, 0, 0, FW_SEMIBOLD, FALSE, FALSE, FALSE,
                              ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
                              CLEARTYPE_QUALITY, DEFAULT_PITCH, "Segoe UI");
-    g_smallFont = CreateFontA(-(height / 28), 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
-                              ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
-                              CLEARTYPE_QUALITY, DEFAULT_PITCH, "Segoe UI");
 
     MSG msg;
     while (GetMessageA(&msg, NULL, 0, 0) > 0) {
