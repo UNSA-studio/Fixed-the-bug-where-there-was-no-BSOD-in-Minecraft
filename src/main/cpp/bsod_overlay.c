@@ -5,14 +5,14 @@
  * BSOD overlay - a tiny standalone Win32 program.
  *
  * Spawned ONLY by the unhandled-exception filter, i.e. when the JVM is
- * genuinely dying. Draws the classic Windows 10 blue screen exactly over the
- * dead Minecraft window, QR code included, waits for the game process to
- * disappear, relaunches it via the restart script, quits.
+ * genuinely dying. Becomes a CHILD of the dead Minecraft window, so the blue
+ * screen literally lives INSIDE the game window: it moves with it, minimises
+ * with it, and can never cover anything else. Draws the classic Windows 10
+ * BSOD (QR code included), waits for the game process to disappear, relaunches
+ * it via the restart script, quits.
  *
- * The window is a plain WS_POPUP: no TOPMOST, draggable by mouse - it stays
- * inside the game window's old rectangle and never covers other apps.
- *
- * argv: [1]=stop code hex  [2..5]=window l,t,r,b  [6]=game pid  [7]=restart cmd
+ * argv: [1]=stop code hex  [2..5]=window l,t,r,b (fallback size only)
+ *       [6]=game pid  [7]=restart cmd
  */
 
 /* QR for https://www.minecraft.net, 25x25, ECC M. */
@@ -56,11 +56,30 @@ static char g_status[160] = "";
 
 static HFONT g_faceFont;
 static HFONT g_bodyFont;
-static HFONT g_smallFont;
 static HFONT g_boldFont;
 
-static POINT g_dragOffset;
-static BOOL  g_dragging = FALSE;
+/* Child of the Minecraft window: the OS moves it whenever the game moves. */
+static HWND g_mcWindow;
+
+/* Finds the biggest visible top-level window of our own process (the MC window). */
+static BOOL CALLBACK FindMcWindowProc(HWND hwnd, LPARAM lParam) {
+    DWORD pid = 0;
+    RECT wr;
+    GetWindowThreadProcessId(hwnd, &pid);
+    if (pid != GetCurrentProcessId()) {
+        return TRUE;
+    }
+    if (!IsWindowVisible(hwnd)) {
+        return TRUE;
+    }
+    if (GetWindowRect(hwnd, &wr)
+            && (wr.right - wr.left) > 240 && (wr.bottom - wr.top) > 160) {
+        HWND* out = (HWND*) lParam;
+        *out = hwnd;
+        return FALSE; /* found it, stop enumeration */
+    }
+    return TRUE;
+}
 
 static LRESULT CALLBACK OverlayProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     switch (msg) {
@@ -193,26 +212,7 @@ static LRESULT CALLBACK OverlayProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         break;
     }
     case WM_LBUTTONDOWN:
-        /* Drag the window around instead of closing it. */
-        g_dragging = TRUE;
-        SetCapture(hwnd);
-        g_dragOffset.x = LOWORD(lp);
-        g_dragOffset.y = HIWORD(lp);
-        break;
-    case WM_MOUSEMOVE:
-        if (g_dragging) {
-            POINT p = { LOWORD(lp), HIWORD(lp) };
-            ClientToScreen(hwnd, &p);
-            RECT wr;
-            GetWindowRect(hwnd, &wr);
-            SetWindowPos(hwnd, NULL,
-                         p.x - g_dragOffset.x, p.y - g_dragOffset.y,
-                         0, 0, SWP_NOSIZE | SWP_NOZORDER);
-        }
-        break;
-    case WM_LBUTTONUP:
-        g_dragging = FALSE;
-        ReleaseCapture();
+        PostQuitMessage(0);
         break;
     case WM_KEYDOWN:
         if (wp == VK_ESCAPE) {
@@ -262,27 +262,51 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE prev, LPSTR cmdLine, int show) {
     wc.lpszClassName = "UnsaBsodOverlay";
     RegisterClassA(&wc);
 
-    int left = l, top = t, width, height;
+    int width, height;
     if (r <= l || b <= t || l < 0 || t < 0) {
         width = GetSystemMetrics(SM_CXSCREEN) * 3 / 4;
         height = GetSystemMetrics(SM_CYSCREEN) * 3 / 4;
-        left = (GetSystemMetrics(SM_CXSCREEN) - width) / 2;
-        top = (GetSystemMetrics(SM_CYSCREEN) - height) / 2;
     } else {
         width = r - l;
         height = b - t;
     }
 
-    /* Plain WS_POPUP: no TOPMOST, z-order stays normal, other apps are free. */
-    HWND hwnd = CreateWindowExA(0,
-                                "UnsaBsodOverlay", "BSOD",
-                                WS_POPUP | WS_VISIBLE,
-                                left, top, width, height,
-                                NULL, NULL, hInst, NULL);
-    if (!hwnd) {
-        return 1;
+    /* Find the Minecraft window so we can become its child: the OS then moves
+     * and clips us automatically whenever the game window moves or minimises.
+     * The blue screen literally lives INSIDE the game window. */
+    g_mcWindow = NULL;
+    EnumWindows(FindMcWindowProc, (LPARAM) &g_mcWindow);
+
+    if (g_mcWindow) {
+        RECT cr;
+        GetClientRect(g_mcWindow, &cr);
+        width = cr.right;
+        height = cr.bottom;
+
+        /* WS_CHILD, positioned at 0,0 inside the game window. */
+        HWND hwnd = CreateWindowExA(0,
+                                    "UnsaBsodOverlay", "BSOD",
+                                    WS_CHILD | WS_VISIBLE,
+                                    0, 0, width, height,
+                                    g_mcWindow, NULL, hInst, NULL);
+        if (!hwnd) {
+            return 1;
+        }
+        SetFocus(hwnd);
+    } else {
+        /* Fallback: standalone popup centred on screen. */
+        int left = (GetSystemMetrics(SM_CXSCREEN) - width) / 2;
+        int top = (GetSystemMetrics(SM_CYSCREEN) - height) / 2;
+        HWND hwnd = CreateWindowExA(0,
+                                    "UnsaBsodOverlay", "BSOD",
+                                    WS_POPUP | WS_VISIBLE,
+                                    left, top, width, height,
+                                    NULL, NULL, hInst, NULL);
+        if (!hwnd) {
+            return 1;
+        }
+        SetForegroundWindow(hwnd);
     }
-    SetForegroundWindow(hwnd);
 
     g_faceFont = CreateFontA(-(height / 5), 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
                              ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
