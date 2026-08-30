@@ -1,7 +1,5 @@
 package www.unsa.bsod.com.client;
 
-import java.lang.management.ManagementFactory;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -85,27 +83,5 @@ public final class GameRestarter {
             tokens.add(current.toString());
         }
         return tokens;
-    }
-
-    /** Fallback used only when ProcessHandle cannot provide the command line. */
-    @SuppressWarnings("unused")
-    private static List<String> fallbackCommand() {
-        List<String> cmd = new ArrayList<>();
-        String os = System.getProperty("os.name", "").toLowerCase();
-        cmd.add(Path.of(System.getProperty("java.home"), "bin",
-                os.contains("win") ? "java.exe" : "java").toString());
-
-        // Carry over memory settings from the original JVM args.
-        for (String arg : ManagementFactory.getRuntimeMXBean().getInputArguments()) {
-            if (arg.startsWith("-Xmx") || arg.startsWith("-Xms")) {
-                cmd.add(arg);
-            }
-        }
-        cmd.add("-cp");
-        cmd.add(System.getProperty("java.class.path", ""));
-        cmd.add("-D" + RESTART_MARKER_PROPERTY + "=true");
-        cmd.add(System.getProperty("bsod.fallbackMain",
-                "net.neoforged.fml.loading.ImmediateWindowHandler"));
-        return cmd;
     }
 }

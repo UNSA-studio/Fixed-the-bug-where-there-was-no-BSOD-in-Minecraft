@@ -205,9 +205,13 @@ static void ExtractStopCode(const char* hsErrPath, char* out, size_t outLen) {
             digits++;
         }
         if (digits == 8) {
+            /* Copy exactly 8 hex digits - never lstrcat the rest of the
+             * buffer (that was a genuine overflow: head[] continues for
+             * hundreds of bytes past the hex code). */
+            char tmp[12];
+            lstrcpynA(tmp, hex, 9);
             lstrcpynA(out, "0x", (int) outLen);
-            lstrcatA(out, hex); /* full copy then cut - lstrcpynA handles len */
-            out[10] = '\0';
+            lstrcatA(out, tmp);
             return;
         }
         p = hex;
@@ -252,6 +256,45 @@ static DWORD WaitForGameDeath(DWORD pid) {
         CloseHandle(proc);
     }
     return exitCode;
+}
+
+/* Captures the REAL full command line of the game process from the OS
+ * (PowerShell/CIM - works even when the JVM's own ProcessHandle reports an
+ * empty line, which happens under some launchers). Overwrites the restart
+ * command file, because a Java-side reconstruction cannot recover the
+ * classpath and JVM flags (-Xmx, -D...) and the relaunch would die
+ * instantly. */
+static void CaptureRealCommandLine(DWORD pid, const char* gameDir) {
+    char outPath[MAX_PATH * 2];
+    lstrcpynA(outPath, gameDir, sizeof(outPath));
+    size_t len = lstrlenA(outPath);
+    if (len && outPath[len - 1] != '\\' && outPath[len - 1] != '/') {
+        lstrcatA(outPath, "\\");
+    }
+    lstrcatA(outPath, "BSOD\\bsod_restart_cmd.txt");
+
+    char cmd[MAX_PATH * 4];
+    wsprintfA(cmd,
+              "cmd /c powershell -NoProfile -Command "
+              "\"(Get-CimInstance Win32_Process -Filter 'ProcessId=%lu').CommandLine\" "
+              "> \"%s\" 2>nul",
+              (unsigned long) pid, outPath);
+
+    STARTUPINFOA si;
+    PROCESS_INFORMATION pi;
+    ZeroMemory(&si, sizeof(si));
+    si.cb = sizeof(si);
+    ZeroMemory(&pi, sizeof(pi));
+    if (CreateProcessA(NULL, cmd, NULL, NULL, FALSE, CREATE_NO_WINDOW,
+                       NULL, NULL, &si, &pi)) {
+        /* Wait briefly for the capture to finish. */
+        WaitForSingleObject(pi.hProcess, 10000);
+        CloseHandle(pi.hThread);
+        CloseHandle(pi.hProcess);
+        LogLine("captured real command line via CIM");
+    } else {
+        LogLine("command line capture failed, gle=%lu", GetLastError());
+    }
 }
 
 static LRESULT CALLBACK OverlayProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
@@ -462,6 +505,12 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE prev, LPSTR cmdLine, int show) {
         }
         LogLine("watchdog start: pid=%lu", (unsigned long) pid);
 
+        /* Grab the REAL full command line from the OS once, up front - the
+         * JVM's own ProcessHandle reports an empty line under some
+         * launchers, and a Java-side reconstruction loses the classpath and
+         * JVM flags (which made relaunches die instantly). */
+        CaptureRealCommandLine(pid, gameDir);
+
         TrackGameWindow(pid);
         FILETIME started;
         GetSystemTimeAsFileTime(&started);
@@ -489,6 +538,9 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE prev, LPSTR cmdLine, int show) {
                 LogLine("native crash confirmed (%s) - game window still alive,"
                         " showing BSOD in-place",
                         g_codeText);
+                /* The process is still breathing RIGHT NOW: grab its real,
+                 * complete command line from the OS while we still can. */
+                CaptureRealCommandLine(pid, gameDir);
                 crashConfirmed = 1;
                 break;      /* fall through to window creation NOW */
             }

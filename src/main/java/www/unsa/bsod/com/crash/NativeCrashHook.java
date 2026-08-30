@@ -131,8 +131,9 @@ public final class NativeCrashHook {
         }
 
         // The game dir may contain spaces (e.g. "... 1.21.1-NF-TESTMods") -
-        // always launch through cmd /c start with proper quoting so the
-        // working directory is right and the window detaches from the script.
+        // always launch through cmd with the /s /c quoting pattern, otherwise
+        // cmd strips the outer quotes of quoted paths like
+        // "C:\Program Files\Java\...\java.exe" and the relaunch explodes.
         if (windows) {
             Files.writeString(dir.resolve("bsod_restart_cmd.txt"), cmdLine,
                     StandardCharsets.UTF_8);
@@ -141,9 +142,9 @@ public final class NativeCrashHook {
                     "@echo off\r\n"
                     + "setlocal\r\n"
                     + "set /p MC_CMD=<\"%~dp0bsod_restart_cmd.txt\"\r\n"
-                    + "if \"%MC_CMD%\"==\"\" exit /b 1\r\n"
+                    + "if not defined MC_CMD exit /b 1\r\n"
                     + "cd /d \"%~dp0..\"\r\n"
-                    + "start \"Minecraft\" /d \"%~dp0..\" cmd /c %MC_CMD%\r\n",
+                    + "start \"Minecraft\" /d \"%~dp0..\" cmd /s /c \"%MC_CMD%\"\r\n",
                     StandardCharsets.UTF_8);
             return cmd;
         }

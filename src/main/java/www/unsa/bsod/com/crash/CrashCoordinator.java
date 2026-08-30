@@ -203,8 +203,17 @@ public final class CrashCoordinator {
             return;
         }
         Thread.setDefaultUncaughtExceptionHandler((thread, throwable) -> {
-            if (thread != null && thread.getName().startsWith("BSOD-")) {
+            if (thread == null || thread.getName().startsWith("BSOD-")) {
                 return; // never recurse into ourselves
+            }
+            /* FULL takeover only for the RENDER thread - an uncaught
+             * exception on a background mod thread is usually harmless and
+             * the game keeps running; hijacking the screen for it was the
+             * "my game is fine, why is there a BSOD?" bug. */
+            if (thread != Minecraft.getInstance().thread) {
+                LOGGER.error("[BSOD] Uncaught exception on background thread "
+                        + thread.getName() + " - logged, game continues", throwable);
+                return;
             }
             onEscapedThrowable(throwable);
         });
