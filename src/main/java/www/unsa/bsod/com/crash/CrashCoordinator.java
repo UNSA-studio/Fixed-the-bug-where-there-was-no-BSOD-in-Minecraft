@@ -206,13 +206,16 @@ public final class CrashCoordinator {
             if (thread == null || thread.getName().startsWith("BSOD-")) {
                 return; // never recurse into ourselves
             }
-            /* FULL takeover only for the RENDER thread - an uncaught
-             * exception on a background mod thread is usually harmless and
-             * the game keeps running; hijacking the screen for it was the
-             * "my game is fine, why is there a BSOD?" bug. */
-            if (thread != Minecraft.getInstance().thread) {
+            /* FULL takeover only for the RENDER thread - an uncaught exception on a
+             * background mod thread is usually harmless and the game keeps
+             * running; hijacking the screen for it was the "my game is fine,
+             * why is there a BSOD?" bug. The vanilla render thread is always
+             * named "Render thread", so this needs no mapped fields. */
+            String tName = thread.getName();
+            if (!tName.equals("Render thread")
+                    && !tName.startsWith("Server thread")) {
                 LOGGER.error("[BSOD] Uncaught exception on background thread "
-                        + thread.getName() + " - logged, game continues", throwable);
+                        + tName + " - logged, game continues", throwable);
                 return;
             }
             onEscapedThrowable(throwable);
