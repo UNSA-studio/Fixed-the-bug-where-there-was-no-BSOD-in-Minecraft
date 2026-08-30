@@ -72,7 +72,7 @@ static char  g_restartCmd[MAX_PATH * 2];
 static int  g_ticks = 0;
 static int  g_percent = 0;
 static int  g_relaunchDone = 0;
-static int  g_dying = 0;
+static int  g_deathHandled = 0;
 
 static HFONT g_faceFont;
 static HFONT g_bodyFont;
@@ -266,83 +266,66 @@ static LRESULT CALLBACK OverlayProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             break;
         }
         g_ticks++;
-        g_percent = g_ticks * 5;
-        if (g_percent > 99) {
-            g_percent = 99;
-        }
-
-        /* In watchdog mode the game is ALREADY dead - the process handle
-         * check below would fire immediately. Give the user the classic
-         * short "collecting" phase instead, then relaunch. */
-        if (g_dying) {
-            if (g_ticks >= 8) {     /* ~4s of collecting, then restart */
-                KillTimer(hwnd, 1);
-                g_percent = 100;
-
-                if (!g_relaunchDone) {
-                    g_relaunchDone = 1;
-                    LogLine("relaunching via %s", g_restartCmd);
-                    SHELLEXECUTEINFOA sei;
-                    ZeroMemory(&sei, sizeof(sei));
-                    sei.cbSize = sizeof(sei);
-                    sei.lpVerb = "open";
-                    sei.lpFile = g_restartCmd;
-                    sei.nShow = SW_SHOWNORMAL;
-                    ShellExecuteExA(&sei);
-                }
-                SetTimer(hwnd, 2, 2500, NULL);
+        if (g_percent < 99) {
+            g_percent = g_ticks * 5;
+            if (g_percent > 99) {
+                g_percent = 99;
             }
-            InvalidateRect(hwnd, NULL, TRUE);
-            break;
         }
 
-        /* Needs SYNCHRONIZE, otherwise WaitForSingleObject always fails. */
+        /* Is the game still alive? */
         HANDLE proc = OpenProcess(SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION,
                                   FALSE, g_gamePid);
-        if (proc == NULL || WaitForSingleObject(proc, 0) == WAIT_OBJECT_0) {
-            if (proc) {
-                CloseHandle(proc);
-            }
-            KillTimer(hwnd, 1);
-            g_percent = 100;
+        int dead = (proc == NULL || WaitForSingleObject(proc, 0) == WAIT_OBJECT_0);
+        if (proc) {
+            CloseHandle(proc);
+        }
 
-            /* Phase 2: the dying parent window is about to vanish with the
-             * process - break free as an independent popup BEFORE that
-             * happens, keeping the blue screen alive at the same position. */
+        if (dead && !g_deathHandled) {
+            g_deathHandled = 1;
+            /* The game window dies with the process - break free as an
+             * independent borderless window at the SAME screen position. */
             if (g_mcWindow && IsWindow(g_mcWindow)) {
                 LogLine("game dead - re-parenting to desktop");
+                POINT origin = { 0, 0 };
+                ClientToScreen(g_mcWindow, &origin);
+                RECT cr;
+                GetClientRect(g_mcWindow, &cr);
                 SetParent(hwnd, NULL);
                 DWORD style = GetWindowLongA(hwnd, GWL_STYLE);
                 style &= ~WS_CHILD;
                 style |= WS_POPUP;
                 SetWindowLongA(hwnd, GWL_STYLE, style);
+                SetWindowPos(hwnd, NULL, origin.x, origin.y,
+                             cr.right, cr.bottom,
+                             SWP_NOZORDER | SWP_NOACTIVATE);
                 g_mcWindow = NULL;
             }
-            InvalidateRect(hwnd, NULL, TRUE);
-
-            if (!g_relaunchDone) {
-                g_relaunchDone = 1;
-                LogLine("relaunching via %s", g_restartCmd);
-                SHELLEXECUTEINFOA sei;
-                ZeroMemory(&sei, sizeof(sei));
-                sei.cbSize = sizeof(sei);
-                sei.lpVerb = "open";
-                sei.lpFile = g_restartCmd;
-                sei.nShow = SW_SHOWNORMAL;
-                ShellExecuteExA(&sei);
-            }
-            SetTimer(hwnd, 2, 2500, NULL);
-        } else {
-            CloseHandle(proc);
-            /* Phase 1: keep following the (still alive) game window. */
-            if (g_mcWindow && IsWindow(g_mcWindow)) {
-                RECT cr;
-                GetClientRect(g_mcWindow, &cr);
-                SetWindowPos(hwnd, NULL, 0, 0, cr.right, cr.bottom,
-                             SWP_NOZORDER | SWP_NOACTIVATE);
-            }
-            InvalidateRect(hwnd, NULL, TRUE);
         }
+
+        if (dead && g_ticks >= 8 && !g_relaunchDone) {
+            KillTimer(hwnd, 1);
+            g_percent = 100;
+            g_relaunchDone = 1;
+            LogLine("relaunching via %s", g_restartCmd);
+            SHELLEXECUTEINFOA sei;
+            ZeroMemory(&sei, sizeof(sei));
+            sei.cbSize = sizeof(sei);
+            sei.lpVerb = "open";
+            sei.lpFile = g_restartCmd;
+            sei.nShow = SW_SHOWNORMAL;
+            ShellExecuteExA(&sei);
+            SetTimer(hwnd, 2, 2500, NULL);
+        }
+
+        /* Still on stage: keep following the (alive) game window. */
+        if (!dead && g_mcWindow && IsWindow(g_mcWindow)) {
+            RECT cr;
+            GetClientRect(g_mcWindow, &cr);
+            SetWindowPos(hwnd, NULL, 0, 0, cr.right, cr.bottom,
+                         SWP_NOZORDER | SWP_NOACTIVATE);
+        }
+        InvalidateRect(hwnd, NULL, TRUE);
         break;
     }
     case WM_PAINT: {
@@ -427,15 +410,14 @@ static LRESULT CALLBACK OverlayProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         EndPaint(hwnd, &ps);
         break;
     }
-    case WM_LBUTTONDOWN:
-        PostQuitMessage(0);
-        break;
-    case WM_KEYDOWN:
-        if (wp == VK_ESCAPE) {
-            PostQuitMessage(0);
-        }
-        break;
+    case WM_CLOSE:
     case WM_DESTROY:
+        /* The blue screen refuses to be dismissed while it is on stage -
+         * no Alt+F4, no close, nothing. Only after it has relaunched the
+         * game may it be closed. */
+        if (!g_relaunchDone) {
+            return 0;
+        }
         PostQuitMessage(0);
         break;
     default:
@@ -444,15 +426,56 @@ static LRESULT CALLBACK OverlayProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     return 0;
 }
 
+/* Blue screen window class: WS_POPUP with no close button is still an
+ * independent application that can be dismissed - which would kill the
+ * joke. The real anti-dismissal trick: a plain WS_POPUP window pair where
+ * the VISIBLE blue screen is a child of a tiny invisible owner window, so
+ * there is no title bar, no taskbar entry, no close box at all. */
+static const char* const kOverlayClass = "UnsaBsodOverlay";
+
+static LRESULT CALLBACK OwnerProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
+    switch (msg) {
+    case WM_CLOSE:
+    case WM_DESTROY:
+        /* Closing the (invisible) owner would kill the show - refuse. */
+        if (g_alive) {
+            return 0;
+        }
+        break;
+    }
+    return DefWindowProcA(hwnd, msg, wp, lp);
+}
+
+static void RegisterClasses(HINSTANCE hInst) {
+    WNDCLASSA overlay;
+    ZeroMemory(&overlay, sizeof(overlay));
+    overlay.lpfnWndProc = OverlayProc;
+    overlay.hInstance = hInst;
+    overlay.hCursor = LoadCursor(NULL, IDC_ARROW);
+    overlay.hbrBackground = CreateSolidBrush(RGB(0, 0x78, 0xD7));
+    overlay.lpszClassName = kOverlayClass;
+    RegisterClassA(&overlay);
+
+    WNDCLASSA owner;
+    ZeroMemory(&owner, sizeof(owner));
+    owner.lpfnWndProc = OwnerProc;
+    owner.hInstance = hInst;
+    owner.lpszClassName = "UnsaBsodOwner";
+    RegisterClassA(&owner);
+}
+
 int WINAPI WinMain(HINSTANCE hInst, HINSTANCE prev, LPSTR cmdLine, int show) {
     (void) prev; (void) cmdLine; (void) show;
 
     int argc = __argc;
     char** argv = __argv;
 
-    /* ---- Watchdog mode: guard the whole game session, then fall through
-     * to the normal overlay startup if (and only if) a native crash is
-     * confirmed by a fresh hs_err file. ---- */
+    /* ---- Watchdog mode: guard the whole game session. Primary signal is a
+     * FRESH hs_err file APPEARING - the JVM writes it while the game window
+     * is still alive, so we can move INTO the game window as a child and the
+     * blue screen appears in-place, milliseconds after the crash. If that
+     * watcher misses it (no hs_err but the process died anyway), fall back
+     * to waiting for process death. ---- */
     if (argc >= 2 && lstrcmpA(argv[1], "--watch") == 0) {
         DWORD pid = (argc >= 3) ? (DWORD) strtoul(argv[2], NULL, 10) : 0;
         if (argc >= 4 && argv[3][0]) {
@@ -468,31 +491,49 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE prev, LPSTR cmdLine, int show) {
         FILETIME started;
         GetSystemTimeAsFileTime(&started);
 
-        /* Poll until death, refreshing the last known window rect. */
+        /* Watch for a fresh hs_err while the process is alive. The moment
+         * one appears, the game window is still there - attach to it and
+         * show the blue screen immediately (in-place, inside the window). */
+        int crashConfirmed = 0;
         for (;;) {
             HANDLE proc = OpenProcess(SYNCHRONIZE, FALSE, pid);
             if (!proc) {
                 break;
             }
-            DWORD w = WaitForSingleObject(proc, 1000);
+            DWORD w = WaitForSingleObject(proc, 200);
             CloseHandle(proc);
             if (w == WAIT_OBJECT_0) {
                 break;
             }
             TrackGameWindow(pid);
-        }
-        LogLine("game process died");
 
-        if (!FreshHsErrExists(gameDir, &started)) {
-            LogLine("no fresh hs_err - normal exit, staying silent");
-            return 0;
+            if (!crashConfirmed && FreshHsErrExists(gameDir, &started)) {
+                char hsErrPath[MAX_PATH * 2];
+                NewestHsErrPath(gameDir, &started, hsErrPath, sizeof(hsErrPath));
+                ExtractStopCode(hsErrPath, g_codeText, sizeof(g_codeText));
+                LogLine("native crash confirmed (%s) - game window still alive,"
+                        " showing BSOD in-place",
+                        g_codeText);
+                crashConfirmed = 1;
+                break;      /* fall through to window creation NOW */
+            }
         }
-        char hsErrPath[MAX_PATH * 2];
-        NewestHsErrPath(gameDir, &started, hsErrPath, sizeof(hsErrPath));
-        ExtractStopCode(hsErrPath, g_codeText, sizeof(g_codeText));
-        LogLine("native crash confirmed (%s) - showing BSOD at %ld,%ld",
-                g_codeText, (long) g_lastRect.left, (long) g_lastRect.top);
-        g_dying = 1;
+
+        if (!crashConfirmed) {
+            /* The process died without hs_err being seen: confirm via the
+             * files written before exit (covers very fast deaths). */
+            if (FreshHsErrExists(gameDir, &started)) {
+                char hsErrPath[MAX_PATH * 2];
+                NewestHsErrPath(gameDir, &started, hsErrPath, sizeof(hsErrPath));
+                ExtractStopCode(hsErrPath, g_codeText, sizeof(g_codeText));
+                LogLine("game died with hs_err (%s)", g_codeText);
+                crashConfirmed = 1;
+                TrackGameWindow(pid);   /* last chance for the rect */
+            } else {
+                LogLine("no fresh hs_err - normal exit, staying silent");
+                return 0;
+            }
+        }
     } else {
         if (argc >= 2) {
             lstrcpynA(g_codeText, argv[1], sizeof(g_codeText));
@@ -531,24 +572,24 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE prev, LPSTR cmdLine, int show) {
         width = g_lastRect.right - g_lastRect.left;
         height = g_lastRect.bottom - g_lastRect.top;
     }
-
-    /* Child attachment only works when the game process is still alive (it
-     * never is in watchdog mode, but keep the path for direct launches). */
+/* Live (crash just confirmed via hs_err while the process still runs):
+     * move INTO the game window as a child - blue screen appears in-place,
+     * strictly clipped inside it, following it. Dead (hs_err seen after
+     * death, or a direct launch): place at the last known position. */
     g_mcWindow = NULL;
     if (g_gamePid) {
         EnumWindows(FindMcWindowProc, (LPARAM) &g_mcWindow);
     }
 
     if (g_mcWindow) {
-        LogLine("attached as child of game window");
+        LogLine("attached as child of game window (in-place)");
         RECT cr;
         GetClientRect(g_mcWindow, &cr);
         width = cr.right;
         height = cr.bottom;
 
-        /* WS_CHILD, positioned at 0,0 inside the game window. */
         HWND hwnd = CreateWindowExA(0,
-                                    "UnsaBsodOverlay", "BSOD",
+                                    kOverlayClass, "BSOD",
                                     WS_CHILD | WS_VISIBLE,
                                     0, 0, width, height,
                                     g_mcWindow, NULL, hInst, NULL);
@@ -560,8 +601,9 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE prev, LPSTR cmdLine, int show) {
     } else {
         LogLine("standalone popup at %ld,%ld (%ldx%ld)",
                 (long) left, (long) top, (long) width, (long) height);
-        HWND hwnd = CreateWindowExA(0,
-                                    "UnsaBsodOverlay", "BSOD",
+        /* Borderless, no taskbar button, refuses Alt+F4 (see WM_CLOSE). */
+        HWND hwnd = CreateWindowExA(WS_EX_TOOLWINDOW,
+                                    kOverlayClass, "BSOD",
                                     WS_POPUP | WS_VISIBLE,
                                     left, top, width, height,
                                     NULL, NULL, hInst, NULL);
