@@ -1,5 +1,7 @@
 #include <jni.h>
 #include <windows.h>
+#include <stdio.h>
+#include <stdarg.h>
 
 /*
  * BSOD native crash hook.
@@ -11,41 +13,51 @@
  * risk of the overlay appearing while the game is still running (which the
  * previous AddVectoredExceptionHandler approach got hilariously wrong).
  *
- * In the filter we spawn the overlay and return EXCEPTION_CONTINUE_SEARCH so
- * the JVM continues with its normal crash reporting (hs_err log).
+ * IMPORTANT: SetUnhandledExceptionFilter REPLACES the previous filter (the
+ * JVM installs its own to write hs_err_pid*.log). We therefore chain to the
+ * previous filter AFTER spawning our overlay, so the JVM still writes its
+ * crash log and does its normal crash reporting.
+ *
+ * Diagnostic log: <gameDir>/BSOD/native_hook.log (written with the game's
+ * working directory as CWD, so it lands inside the BSOD folder).
  */
 
 static char g_overlayPath[MAX_PATH];
 static char g_restartPath[MAX_PATH];
+static LPTOP_LEVEL_EXCEPTION_FILTER g_prevFilter = NULL;
 
-/* Finds the biggest visible top-level window of our own process (the MC window). */
-static BOOL CALLBACK FindMcWindowProc(HWND hwnd, LPARAM lParam) {
-    DWORD pid = 0;
-    RECT wr;
-    GetWindowThreadProcessId(hwnd, &pid);
-    if (pid != GetCurrentProcessId()) {
-        return TRUE;
+static void LogLine(const char* fmt, ...) {
+    FILE* f = fopen("BSOD/native_hook.log", "a");
+    if (!f) {
+        return;
     }
-    if (!IsWindowVisible(hwnd)) {
-        return TRUE;
+    SYSTEMTIME st;
+    GetLocalTime(&st);
+    fprintf(f, "[%04u-%02u-%02u %02u:%02u:%02u] ",
+            st.wYear, st.wMonth, st.wDay,
+            st.wHour, st.wMinute, st.wSecond);
+    va_list args;
+    va_start(args, fmt);
+    vfprintf(f, fmt, args);
+    va_end(args);
+    fputc('\n', f);
+    fclose(f);
+}
+
+static LONG WINAPI ChainPrev(PEXCEPTION_POINTERS info) {
+    if (g_prevFilter) {
+        return g_prevFilter(info);
     }
-    if (GetWindowRect(hwnd, &wr)
-            && (wr.right - wr.left) > 240 && (wr.bottom - wr.top) > 160) {
-        RECT* out = (RECT*) lParam;
-        *out = wr;
-        return FALSE; /* found it, stop enumeration */
-    }
-    return TRUE;
+    /* No previous filter: let the default machinery (WER) run. */
+    return EXCEPTION_CONTINUE_SEARCH;
 }
 
 static LONG WINAPI BsodUnhandledFilter(PEXCEPTION_POINTERS info) {
     DWORD code = (info && info->ExceptionRecord) ? info->ExceptionRecord->ExceptionCode : 0;
+    LogLine("unhandled exception 0x%08X - spawning overlay", (unsigned) code);
 
-    /* Capture the MC window rectangle so the overlay can sit exactly where
-     * the game window was, instead of covering the whole desktop. */
-    RECT mcRect = { -1, -1, -1, -1 };
-    EnumWindows(FindMcWindowProc, (LPARAM) &mcRect);
-
+    /* Spawn the overlay FIRST so it is already on screen while the JVM
+     * finishes writing hs_err. The overlay monitors the game pid itself. */
     char cmd[MAX_PATH * 2 + 300];
     lstrcpyA(cmd, "cmd /c start \"\" \"");
     lstrcatA(cmd, g_overlayPath);
@@ -60,9 +72,7 @@ static LONG WINAPI BsodUnhandledFilter(PEXCEPTION_POINTERS info) {
         num[8] = '\0';
         lstrcatA(cmd, num);
     }
-    wsprintfA(cmd + lstrlenA(cmd), " %ld %ld %ld %ld %lu \"%s\"",
-              (long) mcRect.left, (long) mcRect.top,
-              (long) mcRect.right, (long) mcRect.bottom,
+    wsprintfA(cmd + lstrlenA(cmd), " %lu \"%s\"",
               (unsigned long) GetCurrentProcessId(),
               g_restartPath);
 
@@ -72,13 +82,19 @@ static LONG WINAPI BsodUnhandledFilter(PEXCEPTION_POINTERS info) {
         ZeroMemory(&si, sizeof(si));
         si.cb = sizeof(si);
         ZeroMemory(&pi, sizeof(pi));
-        CreateProcessA(NULL, cmd, NULL, NULL, FALSE,
-                       NORMAL_PRIORITY_CLASS | CREATE_NO_WINDOW,
-                       NULL, NULL, &si, &pi);
+        if (!CreateProcessA(NULL, cmd, NULL, NULL, FALSE,
+                            NORMAL_PRIORITY_CLASS | CREATE_NO_WINDOW,
+                            NULL, NULL, &si, &pi)) {
+            LogLine("CreateProcess failed, gle=%lu", (unsigned long) GetLastError());
+        } else {
+            CloseHandle(pi.hThread);
+            CloseHandle(pi.hProcess);
+            LogLine("overlay process started");
+        }
     }
 
-    /* Let the JVM do its own crash reporting and exit as usual. */
-    return EXCEPTION_CONTINUE_SEARCH;
+    /* Let the JVM do its own crash reporting (hs_err log) and exit as usual. */
+    return ChainPrev(info);
 }
 
 __declspec(dllexport) void JNICALL
@@ -92,5 +108,6 @@ Java_www_unsa_bsod_com_crash_NativeCrashHook_install0(JNIEnv* env, jclass cls,
     (*env)->ReleaseStringUTFChars(env, overlayPath, s);
     (*env)->ReleaseStringUTFChars(env, restartPath, r);
 
-    SetUnhandledExceptionFilter(BsodUnhandledFilter);
+    g_prevFilter = SetUnhandledExceptionFilter(BsodUnhandledFilter);
+    LogLine("hook installed (overlay=%s)", g_overlayPath);
 }

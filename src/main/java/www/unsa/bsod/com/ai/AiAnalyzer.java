@@ -33,7 +33,10 @@ public final class AiAnalyzer {
         if (baseUrl.endsWith("/")) {
             baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
         }
-        String url = baseUrl + "/chat/completions";
+        /* Users may paste the full endpoint - don't append twice. */
+        String url = baseUrl.endsWith("/chat/completions")
+                ? baseUrl
+                : baseUrl + "/chat/completions";
 
         Map<String, Object> payload = Map.of(
                 "model", Config.AI_MODEL.get(),

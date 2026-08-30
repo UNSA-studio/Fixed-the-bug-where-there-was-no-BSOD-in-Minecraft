@@ -1,18 +1,26 @@
 #include <windows.h>
 #include <shellapi.h>
+#include <stdio.h>
+#include <stdarg.h>
 
 /*
  * BSOD overlay - a tiny standalone Win32 program.
  *
  * Spawned ONLY by the unhandled-exception filter, i.e. when the JVM is
- * genuinely dying. Becomes a CHILD of the dead Minecraft window, so the blue
- * screen literally lives INSIDE the game window: it moves with it, minimises
- * with it, and can never cover anything else. Draws the classic Windows 10
- * BSOD (QR code included), waits for the game process to disappear, relaunches
- * it via the restart script, quits.
+ * genuinely dying.
  *
- * argv: [1]=stop code hex  [2..5]=window l,t,r,b (fallback size only)
- *       [6]=game pid  [7]=restart cmd
+ * Two-phase display:
+ *   Phase 1: while the game process is STILL ALIVE, the overlay is a WS_CHILD
+ *            of the Minecraft window - it lives strictly inside the game
+ *            window and moves with it.
+ *   Phase 2: the moment the game process dies, we RE-PARENT ourselves to
+ *            NULL (independent popup at the exact same screen position) and
+ *            keep the blue screen alive for the restart countdown. The blue
+ *            screen never disappears together with the dying game window.
+ *
+ * argv: [1]=stop code hex  [2]=game pid  [3]=restart cmd
+ *
+ * Diagnostic log: overlay.log, written next to the restart script.
  */
 
 /* QR for https://www.minecraft.net, 25x25, ECC M. */
@@ -52,7 +60,6 @@ static char  g_restartCmd[MAX_PATH * 2];
 static int  g_ticks = 0;
 static int  g_percent = 0;
 static int  g_relaunchDone = 0;
-static char g_status[160] = "";
 
 static HFONT g_faceFont;
 static HFONT g_bodyFont;
@@ -61,12 +68,36 @@ static HFONT g_boldFont;
 /* Child of the Minecraft window: the OS moves it whenever the game moves. */
 static HWND g_mcWindow;
 
-/* Finds the biggest visible top-level window of our own process (the MC window). */
+static void LogLine(const char* fmt, ...) {
+    char path[MAX_PATH * 2];
+    lstrcpynA(path, g_restartCmd, sizeof(path));
+    char* slash = strrchr(path, '\\');
+    if (!slash) {
+        return;
+    }
+    *(slash + 1) = '\0';
+    lstrcatA(path, "overlay.log");
+    FILE* f = fopen(path, "a");
+    if (!f) {
+        return;
+    }
+    SYSTEMTIME st;
+    GetLocalTime(&st);
+    fprintf(f, "[%02u:%02u:%02u] ", st.wHour, st.wMinute, st.wSecond);
+    va_list args;
+    va_start(args, fmt);
+    vfprintf(f, fmt, args);
+    va_end(args);
+    fputc('\n', f);
+    fclose(f);
+}
+
+/* Finds the top-level window of the DYING game process (not ourselves). */
 static BOOL CALLBACK FindMcWindowProc(HWND hwnd, LPARAM lParam) {
     DWORD pid = 0;
     RECT wr;
     GetWindowThreadProcessId(hwnd, &pid);
-    if (pid != GetCurrentProcessId()) {
+    if (pid != g_gamePid || pid == GetCurrentProcessId()) {
         return TRUE;
     }
     if (!IsWindowVisible(hwnd)) {
@@ -98,18 +129,33 @@ static LRESULT CALLBACK OverlayProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             g_percent = 99;
         }
 
-        HANDLE proc = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, g_gamePid);
+        /* Needs SYNCHRONIZE, otherwise WaitForSingleObject always fails. */
+        HANDLE proc = OpenProcess(SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION,
+                                  FALSE, g_gamePid);
         if (proc == NULL || WaitForSingleObject(proc, 0) == WAIT_OBJECT_0) {
             if (proc) {
                 CloseHandle(proc);
             }
             KillTimer(hwnd, 1);
             g_percent = 100;
-            lstrcpyA(g_status, "Minecraft exited. Relaunching...");
+
+            /* Phase 2: the dying parent window is about to vanish with the
+             * process - break free as an independent popup BEFORE that
+             * happens, keeping the blue screen alive at the same position. */
+            if (g_mcWindow && IsWindow(g_mcWindow)) {
+                LogLine("game dead - re-parenting to desktop");
+                SetParent(hwnd, NULL);
+                DWORD style = GetWindowLongA(hwnd, GWL_STYLE);
+                style &= ~WS_CHILD;
+                style |= WS_POPUP;
+                SetWindowLongA(hwnd, GWL_STYLE, style);
+                g_mcWindow = NULL;
+            }
             InvalidateRect(hwnd, NULL, TRUE);
 
             if (!g_relaunchDone) {
                 g_relaunchDone = 1;
+                LogLine("relaunching via %s", g_restartCmd);
                 SHELLEXECUTEINFOA sei;
                 ZeroMemory(&sei, sizeof(sei));
                 sei.cbSize = sizeof(sei);
@@ -121,6 +167,13 @@ static LRESULT CALLBACK OverlayProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             SetTimer(hwnd, 2, 2500, NULL);
         } else {
             CloseHandle(proc);
+            /* Phase 1: keep following the (still alive) game window. */
+            if (g_mcWindow && IsWindow(g_mcWindow)) {
+                RECT cr;
+                GetClientRect(g_mcWindow, &cr);
+                SetWindowPos(hwnd, NULL, 0, 0, cr.right, cr.bottom,
+                             SWP_NOZORDER | SWP_NOACTIVATE);
+            }
             InvalidateRect(hwnd, NULL, TRUE);
         }
         break;
@@ -158,11 +211,7 @@ static LRESULT CALLBACK OverlayProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         TextOutA(dc, x, y, pct, lstrlenA(pct));
         y += h / 9;
 
-        SelectObject(dc, g_bodyFont);
-        if (g_status[0]) {
-            TextOutA(dc, x, y, g_status, lstrlenA(g_status));
-            y += h / 14;
-        }
+        /* No status text: a real BSOD shows nothing but the bare elements. */
 
         /* ---- QR block, like the real thing: mid-screen, left aligned ---- */
         int qrScale = h / 300;
@@ -239,19 +288,15 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE prev, LPSTR cmdLine, int show) {
     } else {
         lstrcpyA(g_codeText, "UNKNOWN");
     }
-    long l = -1, t = -1, r = -1, b = -1;
-    if (argc >= 6) {
-        l = atol(argv[2]);
-        t = atol(argv[3]);
-        r = atol(argv[4]);
-        b = atol(argv[5]);
+    /* argv: [1]=stop code  [2]=game pid  [3]=restart cmd (old rect args ignored). */
+    if (argc >= 3) {
+        g_gamePid = (DWORD) strtoul(argv[2], NULL, 10);
     }
-    if (argc >= 7) {
-        g_gamePid = (DWORD) atol(argv[6]);
+    if (argc >= 4 && argv[3][0]) {
+        lstrcpynA(g_restartCmd, argv[3], sizeof(g_restartCmd));
     }
-    if (argc >= 8 && argv[7][0]) {
-        lstrcpynA(g_restartCmd, argv[7], sizeof(g_restartCmd));
-    }
+    LogLine("overlay start: pid=%lu code=%s",
+            (unsigned long) g_gamePid, g_codeText);
 
     WNDCLASSA wc;
     ZeroMemory(&wc, sizeof(wc));
@@ -262,22 +307,18 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE prev, LPSTR cmdLine, int show) {
     wc.lpszClassName = "UnsaBsodOverlay";
     RegisterClassA(&wc);
 
-    int width, height;
-    if (r <= l || b <= t || l < 0 || t < 0) {
-        width = GetSystemMetrics(SM_CXSCREEN) * 3 / 4;
-        height = GetSystemMetrics(SM_CYSCREEN) * 3 / 4;
-    } else {
-        width = r - l;
-        height = b - t;
+    int width = GetSystemMetrics(SM_CXSCREEN) * 3 / 4;
+    int height = GetSystemMetrics(SM_CYSCREEN) * 3 / 4;
+
+    /* Find the Minecraft window (of the DYING game process) so we can become
+     * its child while the process is still alive. */
+    g_mcWindow = NULL;
+    if (g_gamePid) {
+        EnumWindows(FindMcWindowProc, (LPARAM) &g_mcWindow);
     }
 
-    /* Find the Minecraft window so we can become its child: the OS then moves
-     * and clips us automatically whenever the game window moves or minimises.
-     * The blue screen literally lives INSIDE the game window. */
-    g_mcWindow = NULL;
-    EnumWindows(FindMcWindowProc, (LPARAM) &g_mcWindow);
-
     if (g_mcWindow) {
+        LogLine("attached as child of game window");
         RECT cr;
         GetClientRect(g_mcWindow, &cr);
         width = cr.right;
@@ -290,10 +331,12 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE prev, LPSTR cmdLine, int show) {
                                     0, 0, width, height,
                                     g_mcWindow, NULL, hInst, NULL);
         if (!hwnd) {
+            LogLine("CreateWindow(child) failed, gle=%lu", GetLastError());
             return 1;
         }
         SetFocus(hwnd);
     } else {
+        LogLine("game window not found, standalone fallback");
         /* Fallback: standalone popup centred on screen. */
         int left = (GetSystemMetrics(SM_CXSCREEN) - width) / 2;
         int top = (GetSystemMetrics(SM_CYSCREEN) - height) / 2;
