@@ -14,13 +14,13 @@ Loaded 131 artifacts from /home/runner/work/Fixed-the-bug-where-there-was-no-BSO
 [1m*** Started working on [4mdownloadServer[0m[0m
 [1m*** Started working on [4mdownloadClient[0m[0m
 [1m*** Started working on [4mdownloadClientMappings[0m[0m
- [1m[92m✓[0m Completed [4mdownloadClient[0m in 0.03s
+ [1m[92m✓[0m Completed [4mdownloadClient[0m in 0.04s
+ [1m[92m✓[0m Completed [4mdownloadClientMappings[0m in 0.04s
  [1m[92m✓[0m Completed [4mdownloadServer[0m in 0.04s
- [1m[92m✓[0m Completed [4mdownloadClientMappings[0m in 0.03s
-[1m*** Started working on [4mstripClient[0m[0m
- [1m[92m♻[0m Used cache of [4mstripClient[0m in 0.00s
 [1m*** Started working on [4mmergeMappings[0m[0m
  [1m[92m♻[0m Used cache of [4mmergeMappings[0m in 0.00s
+[1m*** Started working on [4mstripClient[0m[0m
+ [1m[92m♻[0m Used cache of [4mstripClient[0m in 0.00s
 [1m*** Started working on [4mextractServer[0m[0m
  [1m[92m♻[0m Used cache of [4mextractServer[0m in 0.00s
 [1m*** Started working on [4mstripServer[0m[0m
@@ -37,33 +37,29 @@ Loaded 131 artifacts from /home/runner/work/Fixed-the-bug-where-there-was-no-BSO
  [1m[92m♻[0m Used cache of [4mapplyDevTransforms[0m in 0.00s
 [1m*** Started working on [4mbinaryWithNeoForge[0m[0m
  [1m[92m♻[0m Used cache of [4mbinaryWithNeoForge[0m in 0.00s
-Total runtime: 0.99s
+Total runtime: 1.01s
 
 
 > Task :compileJava FROM-CACHE
-> Task :compileNativeHook
 
-> Task :compileNativeHookLinux FAILED
-src/main/cpp/bsod_overlay_linux.c: In function ‘main’:
-src/main/cpp/bsod_overlay_linux.c:90:5: error: too many arguments to function ‘XAllocColor’
-   90 |     XAllocColor(dpy, cmap, &blueExact, &blue);
-      |     ^~~~~~~~~~~
-In file included from src/main/cpp/bsod_overlay_linux.c:13:
-/usr/include/X11/Xlib.h:1972:15: note: declared here
- 1972 | extern Status XAllocColor(
-      |               ^~~~~~~~~~~
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_3-1787735810829.json
+> Task :compileNativeHook FAILED
+src/main/cpp/bsod_overlay.c: In function ‘OwnerProc’:
+src/main/cpp/bsod_overlay.c:441:13: error: ‘g_alive’ undeclared (first use in this function)
+  441 |         if (g_alive) {
+      |             ^~~~~~~
+src/main/cpp/bsod_overlay.c:441:13: note: each undeclared identifier is reported only once for each function it appears in
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_3-1788095855370.json
 
 [Incubating] Problems report is available at: file:///home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/build/reports/problems/problems-report.html
 
 FAILURE: Build failed with an exception.
 
 * Where:
-Build file '/home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/build.gradle' line: 87
+Build file '/home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/build.gradle' line: 57
 
 * What went wrong:
-Execution failed for task ':compileNativeHookLinux'.
-> Process 'command 'gcc'' finished with non-zero exit value 1
+Execution failed for task ':compileNativeHook'.
+> Process 'command 'x86_64-w64-mingw32-gcc'' finished with non-zero exit value 1
 
 * Try:
 > Run with --info or --debug option to get more log output.
@@ -71,7 +67,7 @@ Execution failed for task ':compileNativeHookLinux'.
 > Get more help at https://help.gradle.org.
 
 * Exception is:
-org.gradle.api.tasks.TaskExecutionException: Execution failed for task ':compileNativeHookLinux'.
+org.gradle.api.tasks.TaskExecutionException: Execution failed for task ':compileNativeHook'.
 	at org.gradle.api.internal.tasks.execution.ExecuteActionsTaskExecuter.lambda$executeIfValid$1(ExecuteActionsTaskExecuter.java:130)
 	at org.gradle.internal.Try$Failure.ifSuccessfulOrElse(Try.java:293)
 	at org.gradle.api.internal.tasks.execution.ExecuteActionsTaskExecuter.executeIfValid(ExecuteActionsTaskExecuter.java:128)
@@ -104,7 +100,7 @@ org.gradle.api.tasks.TaskExecutionException: Execution failed for task ':compile
 	at org.gradle.execution.plan.DefaultPlanExecutor$ExecutorWorker.run(DefaultPlanExecutor.java:376)
 	at org.gradle.internal.concurrent.ExecutorPolicy$CatchAndRecordFailures.onExecute(ExecutorPolicy.java:64)
 	at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManagedExecutor.java:48)
-Caused by: org.gradle.process.internal.ExecException: Process 'command 'gcc'' finished with non-zero exit value 1
+Caused by: org.gradle.process.internal.ExecException: Process 'command 'x86_64-w64-mingw32-gcc'' finished with non-zero exit value 1
 	at org.gradle.process.internal.DefaultExecHandle$ExecResultImpl.assertNormalExitValue(DefaultExecHandle.java:442)
 	at org.gradle.process.internal.DefaultExecAction.execute(DefaultExecAction.java:49)
 	at org.gradle.process.internal.DefaultExecActionFactory.exec(DefaultExecActionFactory.java:218)
@@ -120,8 +116,8 @@ Caused by: org.gradle.process.internal.ExecException: Process 'command 'gcc'' fi
 	at org.gradle.internal.classpath.InstrumentedGroovyCallsHelper.withEntryPoint(InstrumentedGroovyCallsHelper.java:34)
 	at org.gradle.internal.classpath.intercept.DefaultCallSiteDecorator$DecoratingCallSite.maybeInstrumentedDynamicCall(DefaultCallSiteDecorator.java:261)
 	at org.gradle.internal.classpath.intercept.DefaultCallSiteDecorator$DecoratingCallSite.callCurrent(DefaultCallSiteDecorator.java:355)
-	at build_67v4n8flk5clc1y3qc06epvaf$_run_closure7$_closure21.doCall$original(/home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/build.gradle:87)
-	at build_67v4n8flk5clc1y3qc06epvaf$_run_closure7$_closure21.doCall(/home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/build.gradle)
+	at build_67v4n8flk5clc1y3qc06epvaf$_run_closure6$_closure17.doCall$original(/home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/build.gradle:57)
+	at build_67v4n8flk5clc1y3qc06epvaf$_run_closure6$_closure17.doCall(/home/runner/work/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/Fixed-the-bug-where-there-was-no-BSOD-in-Minecraft/build.gradle)
 	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
 	at org.gradle.api.internal.AbstractTask$ClosureTaskAction.doExecute(AbstractTask.java:780)
 	at org.gradle.api.internal.AbstractTask$ClosureTaskAction.lambda$execute$0(AbstractTask.java:767)
@@ -250,6 +246,6 @@ You can use '--warning-mode all' to show the individual deprecation warnings and
 
 For more on this, please refer to https://docs.gradle.org/8.12/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
 
-BUILD FAILED in 17s
-4 actionable tasks: 3 executed, 1 from cache
+BUILD FAILED in 13s
+3 actionable tasks: 2 executed, 1 from cache
 ```
