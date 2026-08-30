@@ -74,8 +74,10 @@ public final class NativeCrashHook {
                 .directory(bsodDir.toFile())
                 .start();
 
-        LOGGER.info("[BSOD] Windows crash watchdog started (pid {}, zero-intrusion)",
-                gamePid);
+        boolean captured = !Files.readString(
+                bsodDir.resolve("bsod_restart_cmd.txt")).isBlank();
+        LOGGER.info("[BSOD] Windows crash watchdog started (pid {}, zero-intrusion, "
+                + "restart cmd captured: {})", gamePid, captured);
     }
 
     private static void installLinuxWatchdog(Path bsodDir) throws IOException {
@@ -110,26 +112,38 @@ public final class NativeCrashHook {
 
     /**
      * Writes the restart scripts. The exact JVM command line is captured NOW,
-     * while the game is alive - after a crash the process no longer exists,
-     * so any "find the running java process" trick would find nothing.
+     * while the game is alive. Primary source is ProcessHandle.commandLine();
+     * under some launchers (e.g. PCL2) it comes back empty, so we fall back
+     * to reassembling "java + args" from sun.java.command, and finally to
+     * leaving a marker for a launcher-script fallback.
      */
     private static Path writeRestartScript(Path dir, boolean windows) throws IOException {
         String cmdLine = ProcessHandle.current().info().commandLine().orElse("");
-        Files.writeString(dir.resolve("bsod_restart_cmd.txt"), cmdLine,
-                StandardCharsets.UTF_8);
 
+        if (cmdLine.isBlank()) {
+            // Reassemble: java executable + every arg after the main class.
+            String java = ProcessHandle.current().info().command().orElse("java");
+            String sun = System.getProperty("sun.java.command", "");
+            if (!sun.isBlank()) {
+                String afterMain = sun.substring(sun.indexOf(' ') + 1);
+                cmdLine = "\"" + java + "\" " + afterMain;
+            }
+        }
+
+        // The game dir may contain spaces (e.g. "... 1.21.1-NF-TESTMods") -
+        // always launch through cmd /c start with proper quoting so the
+        // working directory is right and the window detaches from the script.
         if (windows) {
-            Files.writeString(dir.resolve("bsod_restart.ps1"),
-                    "$cmd = Get-Content -LiteralPath "
-                        + "(Join-Path $PSScriptRoot 'bsod_restart_cmd.txt') -Raw\n"
-                        + "if ($cmd) { Invoke-Expression $cmd.Trim() }\n",
+            Files.writeString(dir.resolve("bsod_restart_cmd.txt"), cmdLine,
                     StandardCharsets.UTF_8);
             Path cmd = dir.resolve("bsod_restart.cmd");
             Files.writeString(cmd,
                     "@echo off\r\n"
-                    + "rem Relaunch Minecraft with the command line captured at install time.\r\n"
-                    + "powershell -NoProfile -ExecutionPolicy Bypass -File "
-                    + "\"%~dp0bsod_restart.ps1\"\r\n",
+                    + "setlocal\r\n"
+                    + "set /p MC_CMD=<\"%~dp0bsod_restart_cmd.txt\"\r\n"
+                    + "if \"%MC_CMD%\"==\"\" exit /b 1\r\n"
+                    + "cd /d \"%~dp0..\"\r\n"
+                    + "start \"Minecraft\" /d \"%~dp0..\" cmd /c %MC_CMD%\r\n",
                     StandardCharsets.UTF_8);
             return cmd;
         }
@@ -139,7 +153,7 @@ public final class NativeCrashHook {
                 "#!/bin/sh\n"
                 + "DIR=$(dirname \"$0\")\n"
                 + "CMD=$(cat \"$DIR/bsod_restart_cmd.txt\")\n"
-                + "[ -n \"$CMD\" ] && sh -c \"$CMD\"\n",
+                + "[ -n \"$CMD\" ] && cd \"$DIR/..\" && sh -c \"$CMD\"\n",
                 StandardCharsets.UTF_8);
         sh.toFile().setExecutable(true, false);
         return sh;

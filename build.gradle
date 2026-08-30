@@ -46,23 +46,15 @@ dependencies {
     jarJar(implementation('io.nayuki:qrcodegen:[1.8.0,1.9.0)'))
 }
 
-// Cross-compile the Windows native crash hook with MinGW on the CI runner.
-def jdkHome = System.getenv('JAVA_HOME') ?: org.gradle.internal.jvm.Jvm.current().getJavaHome().toString()
-
+// Cross-compile the Windows overlay/watchdog with MinGW on the CI runner.
+// (The old bsod_crash_hook.dll was removed: an in-process UEF never fires on
+// HotSpot - the Windows detection now runs entirely in the overlay watchdog.)
 tasks.register('compileNativeHook') {
     def outDir = layout.buildDirectory.dir('native')
-    outputs.file(outDir.map { it.file('bsod_crash_hook.dll') })
+    outputs.file(outDir.map { it.file('bsod_overlay.exe') })
     doLast {
         outDir.get().asFile.mkdirs()
         exec {
-            commandLine 'x86_64-w64-mingw32-gcc', '-shared', '-O2',
-                    "-I${jdkHome}/include",
-                    "-I${jdkHome}/include/linux",
-                    'src/main/cpp/bsod_crash_hook.c',
-                    '-lkernel32', '-luser32',
-                    '-o', outDir.get().file('bsod_crash_hook.dll').asFile
-        }
-                exec {
             commandLine 'x86_64-w64-mingw32-gcc', '-mwindows', '-O2',
                     'src/main/cpp/bsod_overlay.c',
                     '-luser32', '-lgdi32', '-lshell32',

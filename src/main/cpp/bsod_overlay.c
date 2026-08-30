@@ -82,8 +82,12 @@ static HFONT g_boldFont;
 static HWND g_mcWindow;
 
 static void LogLine(const char* fmt, ...) {
-    char path[MAX_PATH * 2];
-    lstrcpynA(path, g_restartCmd, sizeof(path));
+    /* Always next to the overlay exe itself (it lives in the BSOD folder),
+     * regardless of how we were launched or which CWD we inherited. */
+    char path[MAX_PATH];
+    if (!GetModuleFileNameA(NULL, path, sizeof(path))) {
+        return;
+    }
     char* slash = strrchr(path, '\\');
     if (!slash) {
         return;
