@@ -26,8 +26,17 @@ static char g_overlayPath[MAX_PATH];
 static char g_restartPath[MAX_PATH];
 static LPTOP_LEVEL_EXCEPTION_FILTER g_prevFilter = NULL;
 
+/* Absolute log paths, derived from the overlay exe location (the BSOD
+ * folder) - CWD-relative paths would break when the launcher picks an
+ * arbitrary working directory. */
+static char g_logPath[MAX_PATH];
+static char g_overlayLogPath[MAX_PATH];
+
 static void LogLine(const char* fmt, ...) {
-    FILE* f = fopen("BSOD/native_hook.log", "a");
+    if (!g_logPath[0]) {
+        return;
+    }
+    FILE* f = fopen(g_logPath, "a");
     if (!f) {
         return;
     }
@@ -44,6 +53,18 @@ static void LogLine(const char* fmt, ...) {
     fclose(f);
 }
 
+/* Builds <bsodDir>/<name> from the absolute overlay exe path. */
+static void BuildBsodPath(char* out, size_t outLen, const char* name) {
+    lstrcpynA(out, g_overlayPath, (int) outLen);
+    char* slash = strrchr(out, '\\');
+    if (slash) {
+        *(slash + 1) = '\0';
+    } else {
+        out[0] = '\0';
+    }
+    lstrcatA(out, name);
+}
+
 static LONG WINAPI ChainPrev(PEXCEPTION_POINTERS info) {
     if (g_prevFilter) {
         return g_prevFilter(info);
@@ -54,6 +75,34 @@ static LONG WINAPI ChainPrev(PEXCEPTION_POINTERS info) {
 
 static LONG WINAPI BsodUnhandledFilter(PEXCEPTION_POINTERS info) {
     DWORD code = (info && info->ExceptionRecord) ? info->ExceptionRecord->ExceptionCode : 0;
+
+    /* If an overlay already ran in this session, a second fatal exception
+     * means the first crash aftermath went sideways (e.g. frozen overlay).
+     * Kill any stale overlay so the user is not left with a dead rectangle
+     * and let the JVM write hs_err and exit cleanly instead. */
+    if (g_overlayLogPath[0]) {
+        FILE* probe = fopen(g_overlayLogPath, "r");
+        if (probe) {
+            fclose(probe);
+            LogLine("0x%08X after a previous overlay - killing stale overlay, skipping blue",
+                    (unsigned) code);
+            {
+                STARTUPINFOA si;
+                PROCESS_INFORMATION pi;
+                ZeroMemory(&si, sizeof(si));
+                si.cb = sizeof(si);
+                ZeroMemory(&pi, sizeof(pi));
+                if (CreateProcessA(NULL, "cmd /c taskkill /f /im bsod_overlay.exe",
+                                   NULL, NULL, FALSE, CREATE_NO_WINDOW,
+                                   NULL, NULL, &si, &pi)) {
+                    CloseHandle(pi.hThread);
+                    CloseHandle(pi.hProcess);
+                }
+            }
+            return ChainPrev(info);
+        }
+    }
+
     LogLine("unhandled exception 0x%08X - spawning overlay", (unsigned) code);
 
     /* Spawn the overlay FIRST so it is already on screen while the JVM
@@ -109,5 +158,13 @@ Java_www_unsa_bsod_com_crash_NativeCrashHook_install0(JNIEnv* env, jclass cls,
     (*env)->ReleaseStringUTFChars(env, restartPath, r);
 
     g_prevFilter = SetUnhandledExceptionFilter(BsodUnhandledFilter);
+
+    /* A fresh game session starts with a clean overlay slate, so the
+     * second-crash guard only triggers within the SAME session. */
+    BuildBsodPath(g_logPath, sizeof(g_logPath), "native_hook.log");
+    BuildBsodPath(g_overlayLogPath, sizeof(g_overlayLogPath), "overlay.log");
+    if (g_overlayLogPath[0]) {
+        remove(g_overlayLogPath);
+    }
     LogLine("hook installed (overlay=%s)", g_overlayPath);
 }

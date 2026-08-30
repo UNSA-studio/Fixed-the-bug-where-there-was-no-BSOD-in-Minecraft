@@ -103,32 +103,41 @@ public final class NativeCrashHook {
         return target;
     }
 
-    /** Writes a small restart script; the overlay runs it after a crash. */
+    /**
+     * Writes the restart scripts. The exact JVM command line is captured NOW,
+     * while the game is alive - after a crash the process no longer exists,
+     * so any "find the running java process" trick would find nothing.
+     */
     private static Path writeRestartScript(Path dir, boolean windows) throws IOException {
-        Path cmd = dir.resolve(windows ? "bsod_restart.cmd" : "bsod_restart.sh");
-        StringBuilder sb = new StringBuilder();
+        String cmdLine = ProcessHandle.current().info().commandLine().orElse("");
+        Files.writeString(dir.resolve("bsod_restart_cmd.txt"), cmdLine,
+                StandardCharsets.UTF_8);
+
         if (windows) {
-            sb.append("@echo off\r\n");
-            sb.append("rem Relaunch Minecraft through its launcher script after a crash.\r\n");
-            sb.append("if exist \"%~dp0..\\..\\launch.bat\" (\r\n");
-            sb.append("  start \"\" \"%~dp0..\\..\\launch.bat\"\r\n");
-            sb.append(") else (\r\n");
-            sb.append("  powershell -NoProfile -Command \"")
-              .append("$p=Get-CimInstance Win32_Process -Filter \\\"Name LIKE 'java%'\\\" ")
-              .append("| ? { $_.CommandLine -match 'BootstrapLauncher' } | select -f 1; ")
-              .append("if($p){ Start-Process cmd -ArgumentList \\\"/c $($p.CommandLine)\\\" }")
-              .append("\"\r\n");
-            sb.append("}\r\n");
-        } else {
-            sb.append("#!/bin/sh\n");
-            sb.append("# Relaunch Minecraft after a crash.\n");
-            sb.append("DIR=$(dirname \"$0\")\n");
-            sb.append("if [ -x \"$DIR/../../launch.sh\" ]; then\n");
-            sb.append("  exec \"$DIR/../../launch.sh\"\n");
-            sb.append("fi\n");
+            Files.writeString(dir.resolve("bsod_restart.ps1"),
+                    "$cmd = Get-Content -LiteralPath "
+                        + "(Join-Path $PSScriptRoot 'bsod_restart_cmd.txt') -Raw\n"
+                        + "if ($cmd) { Invoke-Expression $cmd.Trim() }\n",
+                    StandardCharsets.UTF_8);
+            Path cmd = dir.resolve("bsod_restart.cmd");
+            Files.writeString(cmd,
+                    "@echo off\r\n"
+                    + "rem Relaunch Minecraft with the command line captured at install time.\r\n"
+                    + "powershell -NoProfile -ExecutionPolicy Bypass -File "
+                    + "\"%~dp0bsod_restart.ps1\"\r\n",
+                    StandardCharsets.UTF_8);
+            return cmd;
         }
-        Files.writeString(cmd, sb.toString(), StandardCharsets.UTF_8);
-        return cmd;
+
+        Path sh = dir.resolve("bsod_restart.sh");
+        Files.writeString(sh,
+                "#!/bin/sh\n"
+                + "DIR=$(dirname \"$0\")\n"
+                + "CMD=$(cat \"$DIR/bsod_restart_cmd.txt\")\n"
+                + "[ -n \"$CMD\" ] && sh -c \"$CMD\"\n",
+                StandardCharsets.UTF_8);
+        sh.toFile().setExecutable(true, false);
+        return sh;
     }
 
     public static BsodState currentState() {
