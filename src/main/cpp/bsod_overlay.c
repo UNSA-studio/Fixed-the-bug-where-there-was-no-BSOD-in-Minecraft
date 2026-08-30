@@ -426,42 +426,17 @@ static LRESULT CALLBACK OverlayProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     return 0;
 }
 
-/* Blue screen window class: WS_POPUP with no close button is still an
- * independent application that can be dismissed - which would kill the
- * joke. The real anti-dismissal trick: a plain WS_POPUP window pair where
- * the VISIBLE blue screen is a child of a tiny invisible owner window, so
- * there is no title bar, no taskbar entry, no close box at all. */
 static const char* const kOverlayClass = "UnsaBsodOverlay";
 
-static LRESULT CALLBACK OwnerProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
-    switch (msg) {
-    case WM_CLOSE:
-    case WM_DESTROY:
-        /* Closing the (invisible) owner would kill the show - refuse. */
-        if (g_alive) {
-            return 0;
-        }
-        break;
-    }
-    return DefWindowProcA(hwnd, msg, wp, lp);
-}
-
 static void RegisterClasses(HINSTANCE hInst) {
-    WNDCLASSA overlay;
-    ZeroMemory(&overlay, sizeof(overlay));
-    overlay.lpfnWndProc = OverlayProc;
-    overlay.hInstance = hInst;
-    overlay.hCursor = LoadCursor(NULL, IDC_ARROW);
-    overlay.hbrBackground = CreateSolidBrush(RGB(0, 0x78, 0xD7));
-    overlay.lpszClassName = kOverlayClass;
-    RegisterClassA(&overlay);
-
-    WNDCLASSA owner;
-    ZeroMemory(&owner, sizeof(owner));
-    owner.lpfnWndProc = OwnerProc;
-    owner.hInstance = hInst;
-    owner.lpszClassName = "UnsaBsodOwner";
-    RegisterClassA(&owner);
+    WNDCLASSA wc;
+    ZeroMemory(&wc, sizeof(wc));
+    wc.lpfnWndProc = OverlayProc;
+    wc.hInstance = hInst;
+    wc.hCursor = LoadCursor(NULL, IDC_ARROW);
+    wc.hbrBackground = CreateSolidBrush(RGB(0, 0x78, 0xD7));
+    wc.lpszClassName = kOverlayClass;
+    RegisterClassA(&wc);
 }
 
 int WINAPI WinMain(HINSTANCE hInst, HINSTANCE prev, LPSTR cmdLine, int show) {
@@ -550,14 +525,7 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE prev, LPSTR cmdLine, int show) {
                 (unsigned long) g_gamePid, g_codeText);
     }
 
-    WNDCLASSA wc;
-    ZeroMemory(&wc, sizeof(wc));
-    wc.lpfnWndProc = OverlayProc;
-    wc.hInstance = hInst;
-    wc.hCursor = LoadCursor(NULL, IDC_ARROW);
-    wc.hbrBackground = CreateSolidBrush(RGB(0, 0x78, 0xD7));
-    wc.lpszClassName = "UnsaBsodOverlay";
-    RegisterClassA(&wc);
+    RegisterClasses(hInst);
 
     int width = GetSystemMetrics(SM_CXSCREEN) * 3 / 4;
     int height = GetSystemMetrics(SM_CYSCREEN) * 3 / 4;
