@@ -2,6 +2,7 @@
 #include <shellapi.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <string.h>
 
 /*
  * BSOD overlay - a tiny standalone Win32 program.
@@ -18,7 +19,18 @@
  *            keep the blue screen alive for the restart countdown. The blue
  *            screen never disappears together with the dying game window.
  *
- * argv: [1]=stop code hex  [2]=game pid  [3]=restart cmd
+ * Watchdog mode (--watch):
+ *   The unhandled-exception filter approach turned out to be dead code on
+ *   HotSpot - the JVM consumes its own fatal exceptions internally and exits
+ *   without ever calling our filter (proven by native_hook.log: two installs,
+ *   zero filter calls). So Windows now uses the same zero-intrusion design
+ *   that already works on Linux: the overlay runs as a WATCHDOG for the
+ *   whole game session. It polls the game process and, on death, only shows
+ *   the blue screen if a FRESH hs_err_pid*.log appeared (i.e. a native crash)
+ *   - a normal exit never triggers it. The blue screen is then placed at the
+ *   LAST KNOWN position of the game window.
+ *
+ * argv: [--watch <pid> <restart cmd> <game dir> | <stop code> <pid> <restart cmd>]
  *
  * Diagnostic log: overlay.log, written next to the restart script.
  */
@@ -60,6 +72,7 @@ static char  g_restartCmd[MAX_PATH * 2];
 static int  g_ticks = 0;
 static int  g_percent = 0;
 static int  g_relaunchDone = 0;
+static int  g_dying = 0;
 
 static HFONT g_faceFont;
 static HFONT g_bodyFont;
@@ -112,6 +125,131 @@ static BOOL CALLBACK FindMcWindowProc(HWND hwnd, LPARAM lParam) {
     return TRUE;
 }
 
+/* ---- Watchdog helpers (Windows mirror of the Linux zero-intrusion design) ---- */
+
+/* Last known position of the game window, tracked while it is alive. */
+static RECT g_lastRect = { -1, -1, -1, -1 };
+
+/* Finds the top-level window of the game process and remembers its rect. */
+static void TrackGameWindow(DWORD pid) {
+    g_gamePid = pid;
+    HWND hwnd = NULL;
+    EnumWindows(FindMcWindowProc, (LPARAM) &hwnd);
+    if (hwnd) {
+        GetWindowRect(hwnd, &g_lastRect);
+    }
+}
+
+/* Copies the path of the most recently written hs_err into |out| (empty on
+ * none). |since| filters files written before the watchdog started. */
+static void NewestHsErrPath(const char* gameDir, const FILETIME* since, char* out,
+                            size_t outLen) {
+    char pattern[MAX_PATH * 2];
+    lstrcpynA(pattern, gameDir, sizeof(pattern));
+    size_t len = lstrlenA(pattern);
+    if (len && pattern[len - 1] != '\\' && pattern[len - 1] != '/') {
+        lstrcatA(pattern, "\\");
+    }
+    lstrcatA(pattern, "hs_err_pid*.log");
+    out[0] = '\0';
+
+    WIN32_FIND_DATAA fd;
+    HANDLE h = FindFirstFileA(pattern, &fd);
+    if (h == INVALID_HANDLE_VALUE) {
+        return;
+    }
+    char dirPart[MAX_PATH * 2];
+    lstrcpynA(dirPart, pattern, sizeof(dirPart));
+    char* slash = strrchr(dirPart, '\\');
+    if (slash) {
+        *(slash + 1) = '\0';
+    } else {
+        dirPart[0] = '\0';
+    }
+    FILETIME best = { 0, 0 };
+    do {
+        if (CompareFileTime(&fd.ftLastWriteTime, since) > 0
+                && CompareFileTime(&fd.ftLastWriteTime, &best) > 0) {
+            best = fd.ftLastWriteTime;
+            lstrcpynA(out, dirPart, (int) outLen);
+            lstrcatA(out, fd.cFileName);
+        }
+    } while (FindNextFileA(h, &fd));
+    FindClose(h);
+}
+
+/* Pulls the Windows exception code out of the first line of an hs_err file,
+ * e.g. "# EXCEPTION_ACCESS_VIOLATION (0xc0000005) at pc=...". */
+static void ExtractStopCode(const char* hsErrPath, char* out, size_t outLen) {
+    lstrcpynA(out, "NATIVE_CRASH", (int) outLen);
+    FILE* f = fopen(hsErrPath, "rb");
+    if (!f) {
+        return;
+    }
+    char head[512];
+    size_t n = fread(head, 1, sizeof(head) - 1, f);
+    fclose(f);
+    head[n] = '\0';
+
+    const char* p = head;
+    while ((p = strstr(p, "0x")) != NULL) {
+        const char* hex = p + 2;
+        int digits = 0;
+        while ((hex[digits] >= '0' && hex[digits] <= '9')
+                || (hex[digits] >= 'a' && hex[digits] <= 'f')
+                || (hex[digits] >= 'A' && hex[digits] <= 'F')) {
+            digits++;
+        }
+        if (digits == 8) {
+            lstrcpynA(out, "0x", (int) outLen);
+            lstrcatA(out, hex); /* full copy then cut - lstrcpynA handles len */
+            out[10] = '\0';
+            return;
+        }
+        p = hex;
+    }
+}
+
+/* Scans <gameDir> for hs_err_pid*.log files written after the given FILETIME.
+ * Returns 1 if at least one fresh hs_err exists (a native crash happened). */
+static int FreshHsErrExists(const char* gameDir, const FILETIME* since) {
+    char pattern[MAX_PATH * 2];
+    lstrcpynA(pattern, gameDir, sizeof(pattern));
+    size_t len = lstrlenA(pattern);
+    if (len && pattern[len - 1] != '\\' && pattern[len - 1] != '/') {
+        lstrcatA(pattern, "\\");
+    }
+    lstrcatA(pattern, "hs_err_pid*.log");
+
+    WIN32_FIND_DATAA fd;
+    HANDLE h = FindFirstFileA(pattern, &fd);
+    if (h == INVALID_HANDLE_VALUE) {
+        return 0;
+    }
+    int found = 0;
+    do {
+        if (CompareFileTime(&fd.ftLastWriteTime, since) > 0) {
+            found = 1;
+            break;
+        }
+    } while (FindNextFileA(h, &fd));
+    FindClose(h);
+    return found;
+}
+
+/* Waits for the game process to die. Returns the process exit code. */
+static DWORD WaitForGameDeath(DWORD pid) {
+    DWORD exitCode = (DWORD) -1;
+    HANDLE proc = OpenProcess(SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION,
+                              FALSE, pid);
+    if (proc) {
+        WaitForSingleObject(proc, INFINITE);
+        GetExitCodeProcess(proc, &exitCode);
+        CloseHandle(proc);
+    }
+    return exitCode;
+}
+
 static LRESULT CALLBACK OverlayProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     switch (msg) {
     case WM_CREATE: {
@@ -127,6 +265,31 @@ static LRESULT CALLBACK OverlayProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         g_percent = g_ticks * 5;
         if (g_percent > 99) {
             g_percent = 99;
+        }
+
+        /* In watchdog mode the game is ALREADY dead - the process handle
+         * check below would fire immediately. Give the user the classic
+         * short "collecting" phase instead, then relaunch. */
+        if (g_dying) {
+            if (g_ticks >= 8) {     /* ~4s of collecting, then restart */
+                KillTimer(hwnd, 1);
+                g_percent = 100;
+
+                if (!g_relaunchDone) {
+                    g_relaunchDone = 1;
+                    LogLine("relaunching via %s", g_restartCmd);
+                    SHELLEXECUTEINFOA sei;
+                    ZeroMemory(&sei, sizeof(sei));
+                    sei.cbSize = sizeof(sei);
+                    sei.lpVerb = "open";
+                    sei.lpFile = g_restartCmd;
+                    sei.nShow = SW_SHOWNORMAL;
+                    ShellExecuteExA(&sei);
+                }
+                SetTimer(hwnd, 2, 2500, NULL);
+            }
+            InvalidateRect(hwnd, NULL, TRUE);
+            break;
         }
 
         /* Needs SYNCHRONIZE, otherwise WaitForSingleObject always fails. */
@@ -283,20 +446,64 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE prev, LPSTR cmdLine, int show) {
     int argc = __argc;
     char** argv = __argv;
 
-    if (argc >= 2) {
-        lstrcpynA(g_codeText, argv[1], sizeof(g_codeText));
+    /* ---- Watchdog mode: guard the whole game session, then fall through
+     * to the normal overlay startup if (and only if) a native crash is
+     * confirmed by a fresh hs_err file. ---- */
+    if (argc >= 2 && lstrcmpA(argv[1], "--watch") == 0) {
+        DWORD pid = (argc >= 3) ? (DWORD) strtoul(argv[2], NULL, 10) : 0;
+        if (argc >= 4 && argv[3][0]) {
+            lstrcpynA(g_restartCmd, argv[3], sizeof(g_restartCmd));
+        }
+        char gameDir[MAX_PATH * 2] = "";
+        if (argc >= 5 && argv[4][0]) {
+            lstrcpynA(gameDir, argv[4], sizeof(gameDir));
+        }
+        LogLine("watchdog start: pid=%lu", (unsigned long) pid);
+
+        TrackGameWindow(pid);
+        FILETIME started;
+        GetSystemTimeAsFileTime(&started);
+
+        /* Poll until death, refreshing the last known window rect. */
+        for (;;) {
+            HANDLE proc = OpenProcess(SYNCHRONIZE, FALSE, pid);
+            if (!proc) {
+                break;
+            }
+            DWORD w = WaitForSingleObject(proc, 1000);
+            CloseHandle(proc);
+            if (w == WAIT_OBJECT_0) {
+                break;
+            }
+            TrackGameWindow(pid);
+        }
+        LogLine("game process died");
+
+        if (!FreshHsErrExists(gameDir, &started)) {
+            LogLine("no fresh hs_err - normal exit, staying silent");
+            return 0;
+        }
+        char hsErrPath[MAX_PATH * 2];
+        NewestHsErrPath(gameDir, &started, hsErrPath, sizeof(hsErrPath));
+        ExtractStopCode(hsErrPath, g_codeText, sizeof(g_codeText));
+        LogLine("native crash confirmed (%s) - showing BSOD at %ld,%ld",
+                g_codeText, (long) g_lastRect.left, (long) g_lastRect.top);
+        g_dying = 1;
     } else {
-        lstrcpyA(g_codeText, "UNKNOWN");
+        if (argc >= 2) {
+            lstrcpynA(g_codeText, argv[1], sizeof(g_codeText));
+        } else {
+            lstrcpyA(g_codeText, "UNKNOWN");
+        }
+        if (argc >= 3) {
+            g_gamePid = (DWORD) strtoul(argv[2], NULL, 10);
+        }
+        if (argc >= 4 && argv[3][0]) {
+            lstrcpynA(g_restartCmd, argv[3], sizeof(g_restartCmd));
+        }
+        LogLine("overlay start: pid=%lu code=%s",
+                (unsigned long) g_gamePid, g_codeText);
     }
-    /* argv: [1]=stop code  [2]=game pid  [3]=restart cmd (old rect args ignored). */
-    if (argc >= 3) {
-        g_gamePid = (DWORD) strtoul(argv[2], NULL, 10);
-    }
-    if (argc >= 4 && argv[3][0]) {
-        lstrcpynA(g_restartCmd, argv[3], sizeof(g_restartCmd));
-    }
-    LogLine("overlay start: pid=%lu code=%s",
-            (unsigned long) g_gamePid, g_codeText);
 
     WNDCLASSA wc;
     ZeroMemory(&wc, sizeof(wc));
@@ -309,9 +516,20 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE prev, LPSTR cmdLine, int show) {
 
     int width = GetSystemMetrics(SM_CXSCREEN) * 3 / 4;
     int height = GetSystemMetrics(SM_CYSCREEN) * 3 / 4;
+    int left = (GetSystemMetrics(SM_CXSCREEN) - width) / 2;
+    int top = (GetSystemMetrics(SM_CYSCREEN) - height) / 2;
 
-    /* Find the Minecraft window (of the DYING game process) so we can become
-     * its child while the process is still alive. */
+    /* The game window is already gone in watchdog mode: use its LAST KNOWN
+     * position so the blue screen appears exactly where the game was. */
+    if (g_lastRect.right > g_lastRect.left && g_lastRect.bottom > g_lastRect.top) {
+        left = g_lastRect.left;
+        top = g_lastRect.top;
+        width = g_lastRect.right - g_lastRect.left;
+        height = g_lastRect.bottom - g_lastRect.top;
+    }
+
+    /* Child attachment only works when the game process is still alive (it
+     * never is in watchdog mode, but keep the path for direct launches). */
     g_mcWindow = NULL;
     if (g_gamePid) {
         EnumWindows(FindMcWindowProc, (LPARAM) &g_mcWindow);
@@ -336,10 +554,8 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE prev, LPSTR cmdLine, int show) {
         }
         SetFocus(hwnd);
     } else {
-        LogLine("game window not found, standalone fallback");
-        /* Fallback: standalone popup centred on screen. */
-        int left = (GetSystemMetrics(SM_CXSCREEN) - width) / 2;
-        int top = (GetSystemMetrics(SM_CYSCREEN) - height) / 2;
+        LogLine("standalone popup at %ld,%ld (%ldx%ld)",
+                (long) left, (long) top, (long) width, (long) height);
         HWND hwnd = CreateWindowExA(0,
                                     "UnsaBsodOverlay", "BSOD",
                                     WS_POPUP | WS_VISIBLE,

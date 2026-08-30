@@ -2,7 +2,6 @@ package www.unsa.bsod.com.crash;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.management.ManagementFactory;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -14,15 +13,13 @@ import org.slf4j.Logger;
 /**
  * Sets up native-crash detection.
  *
- * Windows: loads a tiny DLL that registers an unhandled-exception filter.
- * Such a filter only fires when NOTHING handled the exception - i.e. the JVM
- * is genuinely dying. HotSpot's benign page faults (implicit null checks!)
- * are consumed by SEH long before this, so the infamous false-positive of the
- * old vectored-handler approach is structurally impossible now.
- *
- * Linux: starts a zero-intrusion watchdog process that polls the game pid and
- * watches for a fresh hs_err log. No signals are touched, so the JVM's own
- * crash machinery stays completely untouched.
+ * IMPORTANT LESSON (proven on 2026-08-30 via native_hook.log): on HotSpot,
+ * a SetUnhandledExceptionFilter NEVER fires for JVM fatal crashes - HotSpot
+ * consumes its own fatal exceptions internally and exits. Any in-process
+ * hook is dead code. Therefore BOTH Windows and Linux use the same
+ * zero-intrusion design: a small watchdog process that observes the game
+ * from outside and only reacts when a FRESH hs_err_pid*.log appears (a
+ * native crash). Normal exits never trigger the blue screen.
  *
  * macOS: not supported - the system's own crash reporter takes over, and we
  * simply stay silent.
@@ -63,14 +60,22 @@ public final class NativeCrashHook {
     }
 
     private static void installWindows(Path bsodDir) throws IOException {
-        Path dll = extractResource("bsod_crash_hook.dll", bsodDir);
         Path overlay = extractResource("bsod_overlay.exe", bsodDir);
         Path restartCmd = writeRestartScript(bsodDir, true);
 
-        System.load(dll.toAbsolutePath().toString());
-        install0(overlay.toAbsolutePath().toString(),
-                restartCmd.toAbsolutePath().toString());
-        LOGGER.info("[BSOD] Native crash hook installed (windows, unhandled-exception filter)");
+        long gamePid = ProcessHandle.current().pid();
+        String gameDir = FMLPaths.GAMEDIR.get().toAbsolutePath().toString();
+
+        new ProcessBuilder(overlay.toAbsolutePath().toString(),
+                "--watch",
+                String.valueOf(gamePid),
+                restartCmd.toAbsolutePath().toString(),
+                gameDir)
+                .directory(bsodDir.toFile())
+                .start();
+
+        LOGGER.info("[BSOD] Windows crash watchdog started (pid {}, zero-intrusion)",
+                gamePid);
     }
 
     private static void installLinuxWatchdog(Path bsodDir) throws IOException {
@@ -142,13 +147,5 @@ public final class NativeCrashHook {
 
     public static BsodState currentState() {
         return CrashCoordinator.activeState();
-    }
-
-    private static native void install0(String overlayPath, String restartPath);
-
-    /** Keeps the import used for potential future pid needs. */
-    @SuppressWarnings("unused")
-    private static String currentJvmPid() {
-        return ManagementFactory.getRuntimeMXBean().getName();
     }
 }
